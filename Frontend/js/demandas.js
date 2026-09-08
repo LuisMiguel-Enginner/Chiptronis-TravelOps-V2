@@ -563,9 +563,9 @@ export function inserirCampoAtividadePrioridadeNoForm(formEl, trip, { onChange }
 
   const prioridadeOpts = `
     <option value="todas">Todas as prioridades</option>
-    <option value="1">P1 — Crítica</option>
+    <option value="1">P1 — Alta</option>
     <option value="2">P2 — Média</option>
-    <option value="3plus">P3+ — Normal</option>`;
+    <option value="3plus">P3 em diante — Baixa</option>`;
   const projetoOpts = [`<option value="">Todos os projetos</option>`, ...projetosUnicos.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)].join('');
   const modeloOpts = [`<option value="">Todos os modelos</option>`, ...modelosUnicos.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)].join('');
   const tipoTrabalhoOpts = [`<option value="">Todos os tipos de trabalho</option>`, ...tiposTrabalhoUnicos.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)].join('');
@@ -702,16 +702,22 @@ export function inserirCampoAtividadePrioridadeNoForm(formEl, trip, { onChange }
   function bindGridCheckboxes() {
     wrap.querySelectorAll('input[name="demanda_ativ_cb"]').forEach(cb => {
       cb.addEventListener('change', () => {
-        const selecionados = [...wrap.querySelectorAll('input[name="demanda_ativ_cb"]:checked')];
-        const atividadeIds = selecionados.map(item => String(item.value || '')).filter(Boolean);
-        const veiculoIds = selecionados.map(item => String(item.dataset?.veiculo || '')).filter(Boolean);
-        const atividadesSelecionadas = atividadeIds
-          .map(id => rows.find(row => String(row.atividadeId) === id))
-          .filter(Boolean);
+        if (cb.checked) {
+          wrap.querySelectorAll('input[name="demanda_ativ_cb"]').forEach(other => {
+            if (other !== cb) other.checked = false;
+          });
+        }
 
-        if (atividadeIds.length) {
-          wrap.dataset.ultimaAtivId = atividadeIds.join(',');
-          wrap.dataset.ultimoVeicId = veiculoIds.join(',');
+        const selecionado = wrap.querySelector('input[name="demanda_ativ_cb"]:checked');
+        const atividadeId = selecionado ? String(selecionado.value || '') : '';
+        const veiculoId = selecionado ? String(selecionado.dataset?.veiculo || '') : '';
+        const atividadesSelecionadas = atividadeId
+          ? [rows.find(row => String(row.atividadeId) === atividadeId)].filter(Boolean)
+          : [];
+
+        if (atividadeId) {
+          wrap.dataset.ultimaAtivId = atividadeId;
+          wrap.dataset.ultimoVeicId = veiculoId;
         } else {
           wrap.dataset.ultimaAtivId = '';
           wrap.dataset.ultimoVeicId = '';
