@@ -157,14 +157,173 @@ function showReportExportOptions(reportBlob) {
   });
 
   modal.querySelector('[data-export="word"]').addEventListener("click", () => {
-    const wordBlob = new Blob([reportBlob], { type: "application/msword" });
-    const url = URL.createObjectURL(wordBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `relatorio-viagem-${tripId}.doc`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    close();
+    if (typeof window.html2canvas !== "function") {
+      showAlert(alertEl, "O exportador Word ainda está carregando. Tente novamente.");
+      return;
+    }
+
+    (async () => {
+      try {
+        let reportHTML;
+        if (typeof reportBlob === "string") {
+          reportHTML = reportBlob;
+        } else if (reportBlob instanceof Blob || (reportBlob && typeof reportBlob.arrayBuffer === "function")) {
+          const buf = await reportBlob.arrayBuffer();
+          reportHTML = new TextDecoder("utf-8").decode(buf);
+        } else if (reportBlob && reportBlob.byteLength !== undefined) {
+          reportHTML = new TextDecoder("utf-8").decode(reportBlob);
+        } else {
+          reportHTML = String(reportBlob);
+        }
+        const A4_WIDTH_PX = 794;
+        const MARGIN_MM = 14;
+        const MARGIN_PX_LEFT_RIGHT = Math.round((MARGIN_MM / 25.4) * 96 * 2);
+        const CONTENT_W = Math.max(680, A4_WIDTH_PX - MARGIN_PX_LEFT_RIGHT);
+
+        const stageId = "word-render-stage";
+        document.getElementById(stageId)?.remove();
+
+        const stage = document.createElement("div");
+        stage.id = stageId;
+        Object.assign(stage.style, {
+          position: "absolute",
+          left: "0",
+          top: "0",
+          width: `${CONTENT_W}px`,
+          height: "auto",
+          background: "#ffffff",
+          zIndex: "999998",
+          margin: "0",
+          padding: "0",
+          pointerEvents: "none",
+          overflow: "visible",
+          opacity: "0",
+          visibility: "hidden",
+          transform: "none",
+        });
+        document.body.appendChild(stage);
+        document.body.style.overflow = "hidden";
+        stage.innerHTML = reportHTML;
+        const pageEl = stage.querySelector(".page");
+        if (!pageEl) throw new Error("Falha ao montar o relatório para Word.");
+
+        pageEl.style.width = `${CONTENT_W}px`;
+        pageEl.style.maxWidth = `${CONTENT_W}px`;
+        pageEl.style.minWidth = `${CONTENT_W}px`;
+        pageEl.style.margin = "0 auto";
+        pageEl.style.background = "#ffffff";
+        pageEl.style.display = "block";
+        pageEl.style.boxSizing = "border-box";
+        stage.style.width = `${CONTENT_W + 40}px`;
+        stage.style.padding = "0 20px";
+        stage.style.overflow = "visible";
+
+        const svgEls = stage.querySelectorAll("svg");
+        svgEls.forEach((svg) => {
+          try {
+            svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+            let w = svg.getAttribute("width") || svg.clientWidth || svg.viewBox?.baseVal?.width || 64;
+            let h = svg.getAttribute("height") || svg.clientHeight || svg.viewBox?.baseVal?.height || 64;
+            w = parseFloat(w) || 64;
+            h = parseFloat(h) || 64;
+            svg.setAttribute("width", `${w}`);
+            svg.setAttribute("height", `${h}`);
+            svg.style.width = `${w}px`;
+            svg.style.height = `${h}px`;
+            svg.style.display = "block";
+          } catch {}
+        });
+
+        const allImgs = stage.querySelectorAll("img");
+        await Promise.all([...allImgs].map((img) =>
+          img.complete ? Promise.resolve() :
+          new Promise((res) => { img.onload = res; img.onerror = res; setTimeout(res, 1500); })
+        ));
+
+        if (document.fonts?.ready) {
+          try { await document.fonts.ready; } catch {}
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1100));
+
+        const finalHeight = Math.max(1123, pageEl.scrollHeight + 200);
+        stage.style.height = `${finalHeight}px`;
+        stage.style.visibility = "visible";
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const canvas = await window.html2canvas(pageEl, {
+          scale: 2.5,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          letterRendering: true,
+          logging: false,
+          allowTaint: true,
+          foreignObjectRendering: false,
+          ignoreElements: (el) => el.tagName && el.tagName.toLowerCase() === "script",
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.96);
+
+        const wordHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<title>Relatório de Viagem — TRIP-${tripId}</title>
+<!--[if gte mso 9]>
+<xml>
+<w:WordDocument>
+  <w:View>Print</w:View>
+  <w:Zoom>100</w:Zoom>
+  <w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+@page {
+  size: A4 portrait;
+  margin: 15mm 18mm 15mm 18mm;
+  mso-page-orientation: portrait;
+  mso-header-margin: 12.7mm;
+  mso-footer-margin: 12.7mm;
+}
+div.Section1 { page: Section1; }
+body {
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  font-family: "Calibri", "Arial", sans-serif;
+}
+.report-page-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+</style>
+</head>
+<body>
+<div class="Section1">
+  <img class="report-page-img" src="${imgData}" alt="Relatório de Viagem" />
+</div>
+</body>
+</html>`;
+
+        const wordBlob = new Blob(["\ufeff", wordHTML], { type: "application/msword" });
+        const url = URL.createObjectURL(wordBlob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `relatorio-viagem-${tripId}.doc`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+        document.getElementById(stageId)?.remove();
+        document.body.style.overflow = "";
+        close();
+      } catch (error) {
+        console.error(error);
+        showAlert(alertEl, error.message || "Não foi possível exportar o Word.");
+        document.getElementById("word-render-stage")?.remove();
+        document.body.style.overflow = "";
+      }
+    })();
   });
 
   modal.querySelector('[data-export="pdf"]').addEventListener("click", () => {
