@@ -166,11 +166,30 @@ async function loadEquipmentCatalog() {
       ? equipment.filter((item) => item.equipment_type === filterSelect.value)
       : equipment;
     list.innerHTML = visibleEquipment.length
-      ? visibleEquipment.map((item) => `
-          <div class="list-item">
-            <span><strong>${escapeHtml(item.equipment_type)}</strong> · ${escapeHtml(item.name)}</span>
-            <button type="button" class="btn btn-danger btn-sm" data-remove-equipment-catalog="${item.id}">Remover</button>
-          </div>`).join('')
+      ? visibleEquipment.map((item) => {
+          const accessories = Array.isArray(item.accessories) ? item.accessories : [];
+          const accessoryChips = accessories.length
+            ? accessories.map((accessory) => `
+                <span class="tag accessory-tag" data-accessory-id="${accessory.id}">
+                  ${escapeHtml(accessory.name)}${accessory.required ? ' <em>(obrigatório)</em>' : ''}
+                  <button type="button" class="tag-remove" data-remove-accessory="${accessory.id}" aria-label="Remover acessório ${escapeHtml(accessory.name)}">×</button>
+                </span>`).join('')
+            : '<span class="text-muted">nenhum acessório cadastrado</span>';
+
+          return `
+          <div class="list-item equipment-card-item">
+            <div class="equipment-card-main">
+              <span><strong>${escapeHtml(item.equipment_type)}</strong> · ${escapeHtml(item.name)}</span>
+              <div class="equipment-accessories-tags">
+                ${accessoryChips}
+              </div>
+            </div>
+            <div class="equipment-card-actions">
+              <button type="button" class="btn btn-secondary btn-sm" data-open-accessory-modal="${item.id}">+ acessório</button>
+              <button type="button" class="btn btn-danger btn-sm" data-remove-equipment-catalog="${item.id}">Remover</button>
+            </div>
+          </div>`;
+        }).join('')
       : `<p class="text-muted">Nenhum equipamento cadastrado${filterSelect.value ? ' neste tipo' : ' para este setor'}.</p>`;
   } catch (err) {
     list.innerHTML = `<p class="text-muted">${escapeHtml(err.message || 'Erro ao carregar equipamentos.')}</p>`;
@@ -308,6 +327,39 @@ function setupLeaderListeners() {
   });
 
   document.getElementById('equipment-catalog-list')?.addEventListener('click', async (event) => {
+    const removeAccessory = event.target.closest('[data-remove-accessory]');
+    if (removeAccessory) {
+      const accessoryId = removeAccessory.dataset.removeAccessory;
+      const confirmed = await confirmDialog({
+        title: 'Remover acessório',
+        message: 'Remover este acessório do equipamento?',
+        confirmLabel: 'Remover',
+        confirmTone: 'danger',
+        tone: 'danger',
+      });
+      if (!confirmed) return;
+      try {
+        await api.sectorEquipment.accessories.remove(accessoryId);
+        await loadEquipmentCatalog();
+      } catch (err) {
+        showAlert(document.getElementById('alert'), err.message || 'Erro ao remover acessório.');
+      }
+      return;
+    }
+
+    const openAccessoryModal = event.target.closest('[data-open-accessory-modal]');
+    if (openAccessoryModal) {
+      currentAccessoryEquipmentId = Number(openAccessoryModal.dataset.openAccessoryModal);
+      const modal = document.getElementById('accessory-modal');
+      const input = document.getElementById('new-accessory-name');
+      const required = document.getElementById('new-accessory-required');
+      if (modal) modal.classList.remove('hidden');
+      if (input) input.value = '';
+      if (required) required.checked = false;
+      if (input) input.focus();
+      return;
+    }
+
     const remove = event.target.closest('[data-remove-equipment-catalog]');
     if (!remove) return;
     const confirmed = await confirmDialog({ title: 'Remover equipamento', message: 'Remover este equipamento do catálogo?', confirmLabel: 'Remover', confirmTone: 'danger', tone: 'danger' });
@@ -489,6 +541,31 @@ function setupLeaderListeners() {
     }
   });
 
+  document.getElementById('btn-cancel-accessory')?.addEventListener('click', () => {
+    currentAccessoryEquipmentId = null;
+    document.getElementById('accessory-modal')?.classList.add('hidden');
+  });
+
+  document.getElementById('btn-close-accessory')?.addEventListener('click', () => {
+    currentAccessoryEquipmentId = null;
+    document.getElementById('accessory-modal')?.classList.add('hidden');
+  });
+
+  document.getElementById('btn-save-accessory')?.addEventListener('click', async () => {
+    const name = document.getElementById('new-accessory-name')?.value?.trim();
+    const required = document.getElementById('new-accessory-required')?.checked || false;
+    if (!currentAccessoryEquipmentId || !name) return;
+
+    try {
+      await api.sectorEquipment.accessories.create(currentAccessoryEquipmentId, { name, required });
+      currentAccessoryEquipmentId = null;
+      document.getElementById('accessory-modal')?.classList.add('hidden');
+      await loadEquipmentCatalog();
+    } catch (err) {
+      showAlert(document.getElementById('alert'), err.message || 'Erro ao adicionar acessório.');
+    }
+  });
+
   document.querySelectorAll('[data-close]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const modalId = btn.dataset.close;
@@ -519,6 +596,7 @@ function setupLeaderListeners() {
 
 let currentProjectFieldsId = null;
 let currentWorkTypeFieldsName = null;
+let currentAccessoryEquipmentId = null;
 let editingName = null;
 
 async function openEditNameModal({ kind, id, name }) {

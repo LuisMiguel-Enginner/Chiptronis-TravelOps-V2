@@ -440,6 +440,12 @@ export const api = {
     createType: (name, sector = "") => request("/configuracoes/lider/equipamentos/tipos", { method: "POST", json: { name, ...(sector ? { sector } : {}) } }),
     create: (body) => request("/configuracoes/lider/equipamentos", { method: "POST", json: body }),
     remove: (id, sector = "") => request(`/configuracoes/lider/equipamentos/${id}${sector ? `?sector=${encodeURIComponent(sector)}` : ""}`, { method: "DELETE" }),
+    accessories: {
+      list: (equipmentId) => request(`/configuracoes/lider/equipamentos/${equipmentId}/acessorios`),
+      create: (equipmentId, body) => request(`/configuracoes/lider/equipamentos/${equipmentId}/acessorios`, { method: "POST", json: body }),
+      update: (accessoryId, body) => request(`/configuracoes/lider/equipamentos/acessorios/${accessoryId}`, { method: "PUT", json: body }),
+      remove: (accessoryId) => request(`/configuracoes/lider/equipamentos/acessorios/${accessoryId}`, { method: "DELETE" }),
+    },
   },
 };
 

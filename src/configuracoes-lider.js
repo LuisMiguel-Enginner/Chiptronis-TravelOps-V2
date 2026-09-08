@@ -36,6 +36,31 @@ async function getEquipmentTypes(db, sector) {
   ])];
 }
 
+async function getEquipmentAccessoriesByIds(db, equipmentIds) {
+  if (!equipmentIds.length) return {};
+  const placeholders = equipmentIds.map(() => '?').join(',');
+  const { results } = await db.prepare(
+    `SELECT id, equipment_id, name, required, created_at
+     FROM equipment_accessories
+     WHERE equipment_id IN (${placeholders})
+     ORDER BY name ASC, id ASC`,
+  ).bind(...equipmentIds).all();
+
+  const map = {};
+  for (const accessory of results || []) {
+    const equipmentId = Number(accessory.equipment_id);
+    if (!map[equipmentId]) map[equipmentId] = [];
+    map[equipmentId].push({
+      id: accessory.id,
+      equipment_id: equipmentId,
+      name: accessory.name,
+      required: Number(accessory.required) === 1,
+      created_at: accessory.created_at,
+    });
+  }
+  return map;
+}
+
 configuracoesLider.get("/equipamentos", async (c) => {
   const sector = await resolveEquipmentSector(c);
   if (!sector) return json({ success: true, equipment_types: EQUIPMENT_TYPES, equipment: [] });
@@ -45,7 +70,150 @@ configuracoesLider.get("/equipamentos", async (c) => {
   const { results } = await c.env.DB.prepare(
     "SELECT id, sector, equipment_type, name, created_at FROM sector_equipment_catalog WHERE sector = ? ORDER BY equipment_type ASC, name ASC",
   ).bind(sector).all();
-  return json({ success: true, sector, equipment_types: equipmentTypes, equipment: results || [] });
+
+  const equipment = results || [];
+  const equipmentIds = equipment.map((item) => item.id);
+  const accessoriesByEquipment = await getEquipmentAccessoriesByIds(c.env.DB, equipmentIds);
+
+  return json({
+    success: true,
+    sector,
+    equipment_types: equipmentTypes,
+    equipment: equipment.map((item) => ({
+      ...item,
+      accessories: accessoriesByEquipment[item.id] || [],
+    })),
+  });
+});
+
+configuracoesLider.get("/equipamentos/:equipmentId/acessorios", async (c) => {
+  const user = c.get("user");
+  if (!canManageEquipment(user)) return err("Apenas líderes de setor ou Luis Miguel podem gerenciar acessórios.", 403);
+
+  const equipmentId = Number(c.req.param("equipmentId"));
+  if (!equipmentId) return err("Equipamento inválido.", 400);
+
+  const equipment = await c.env.DB.prepare(
+    "SELECT id, sector FROM sector_equipment_catalog WHERE id = ?",
+  ).bind(equipmentId).first();
+  if (!equipment) return err("Equipamento não encontrado.", 404);
+
+  const sector = await resolveEquipmentSector(c);
+  if (!isLuisMiguel(user) && String(sector || "") !== String(equipment.sector || "")) {
+    return err("Você só pode consultar acessórios do seu setor.", 403);
+  }
+
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, equipment_id, name, required, created_at FROM equipment_accessories WHERE equipment_id = ? ORDER BY name ASC, id ASC",
+  ).bind(equipmentId).all();
+
+  return json({
+    success: true,
+    equipment_id: equipmentId,
+    accessories: (results || []).map((item) => ({
+      id: item.id,
+      equipment_id: Number(item.equipment_id),
+      name: item.name,
+      required: Number(item.required) === 1,
+      created_at: item.created_at,
+    })),
+  });
+});
+
+configuracoesLider.post("/equipamentos/:equipmentId/acessorios", async (c) => {
+  const user = c.get("user");
+  if (!canManageEquipment(user)) return err("Apenas líderes de setor ou Luis Miguel podem adicionar acessórios.", 403);
+
+  const equipmentId = Number(c.req.param("equipmentId"));
+  let body;
+  try { body = await c.req.json(); } catch { return err("JSON inválido.", 400); }
+
+  const name = String(body.name || "").trim();
+  const required = Boolean(body.required || body.required === 1 || body.required === true);
+  if (!equipmentId) return err("Equipamento inválido.", 400);
+  if (!name) return err("Informe o nome do acessório.", 400);
+  if (name.length > 120) return err("O nome do acessório deve ter no máximo 120 caracteres.", 400);
+
+  const equipment = await c.env.DB.prepare(
+    "SELECT id, sector FROM sector_equipment_catalog WHERE id = ?",
+  ).bind(equipmentId).first();
+  if (!equipment) return err("Equipamento não encontrado.", 404);
+
+  const sector = await resolveEquipmentSector(c);
+  if (!isLuisMiguel(user) && String(sector || "") !== String(equipment.sector || "")) {
+    return err("Você só pode adicionar acessórios do seu setor.", 403);
+  }
+
+  const result = await c.env.DB.prepare(
+    "INSERT INTO equipment_accessories (equipment_id, name, required) VALUES (?, ?, ?)",
+  ).bind(equipmentId, name, required ? 1 : 0).run();
+
+  return json({ success: true, id: result.meta.last_row_id, name, required });
+});
+
+configuracoesLider.put("/equipamentos/acessorios/:accessoryId", async (c) => {
+  const user = c.get("user");
+  if (!canManageEquipment(user)) return err("Apenas líderes de setor ou Luis Miguel podem editar acessórios.", 403);
+
+  const accessoryId = Number(c.req.param("accessoryId"));
+  let body;
+  try { body = await c.req.json(); } catch { return err("JSON inválido.", 400); }
+
+  const name = String(body.name || "").trim();
+  const required = body.required !== undefined ? Boolean(body.required || body.required === 1 || body.required === true) : undefined;
+  if (!accessoryId) return err("Acessório inválido.", 400);
+  if (!name && required === undefined) return err("Informe ao menos um valor para atualizar.", 400);
+  if (name && name.length > 120) return err("O nome do acessório deve ter no máximo 120 caracteres.", 400);
+
+  const accessory = await c.env.DB.prepare(
+    `SELECT ea.id, ea.equipment_id, sec.sector
+     FROM equipment_accessories ea
+     JOIN sector_equipment_catalog sec ON sec.id = ea.equipment_id
+     WHERE ea.id = ?`,
+  ).bind(accessoryId).first();
+  if (!accessory) return err("Acessório não encontrado.", 404);
+
+  const sector = await resolveEquipmentSector(c);
+  if (!isLuisMiguel(user) && String(sector || "") !== String(accessory.sector || "")) {
+    return err("Você só pode editar acessórios do seu setor.", 403);
+  }
+
+  const nextName = name || accessory.name;
+  const nextRequired = required !== undefined ? (required ? 1 : 0) : Number(accessory.required || 0);
+  const result = await c.env.DB.prepare(
+    "UPDATE equipment_accessories SET name = ?, required = ? WHERE id = ?",
+  ).bind(nextName, nextRequired, accessoryId).run();
+  if (!result.meta.changes) return err("Acessório não encontrado.", 404);
+
+  return json({ success: true, accessory: { id: accessoryId, name: nextName, required: Number(nextRequired) === 1 } });
+});
+
+configuracoesLider.delete("/equipamentos/acessorios/:accessoryId", async (c) => {
+  const user = c.get("user");
+  if (!canManageEquipment(user)) return err("Apenas líderes de setor ou Luis Miguel podem remover acessórios.", 403);
+
+  const accessoryId = Number(c.req.param("accessoryId"));
+  if (!accessoryId) return err("Acessório inválido.", 400);
+
+  const accessory = await c.env.DB.prepare(
+    `SELECT ea.id, sec.sector
+     FROM equipment_accessories ea
+     JOIN sector_equipment_catalog sec ON sec.id = ea.equipment_id
+     WHERE ea.id = ?`,
+  ).bind(accessoryId).first();
+  if (!accessory) return err("Acessório não encontrado.", 404);
+
+  const sector = await resolveEquipmentSector(c);
+  if (!isLuisMiguel(user) && String(sector || "") !== String(accessory.sector || "")) {
+    return err("Você só pode remover acessórios do seu setor.", 403);
+  }
+
+  const result = await c.env.DB.prepare(
+    "DELETE FROM equipment_accessories WHERE id = ?",
+  ).bind(accessoryId).run();
+  if (!result.meta.changes) return err("Acessório não encontrado.", 404);
+
+  return json({ success: true });
 });
 
 configuracoesLider.post("/equipamentos/tipos", async (c) => {

@@ -1537,6 +1537,70 @@ html[data-theme="dark"] .alert-info .alert-icon {
   min-height: 2.65rem;
   margin-bottom: 0;
 }
+.equipment-card-item {
+  align-items: flex-start;
+  padding: 0.85rem 0.9rem;
+}
+.equipment-card-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.equipment-card-main > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.equipment-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.equipment-accessories-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+.accessory-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text-2);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.accessory-tag em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.tag-remove:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
 @media (max-width: 640px) {
   .equipment-type-create-row {
     grid-template-columns: 1fr;

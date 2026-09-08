@@ -187,6 +187,30 @@
           </div>
         </div>
 
+        <div id="accessory-modal" class="modal-overlay hidden">
+          <div class="modal-content" style="max-width:480px;">
+            <div class="modal-header">
+              <div>
+                <h3>Novo acessório</h3>
+                <p class="modal-subtitle">Cadastre um acessório para este equipamento.</p>
+              </div>
+              <button type="button" class="modal-close" id="btn-close-accessory" aria-label="Fechar">&times;</button>
+            </div>
+            <div class="modal-body">
+              <label for="new-accessory-name">Nome do acessório</label>
+              <input id="new-accessory-name" type="text" maxlength="120" placeholder="Ex: Cabo USB-C" />
+              <label class="field-required-option" style="margin-top:12px;">
+                <input type="checkbox" id="new-accessory-required" />
+                <span>Obrigatório na saída</span>
+              </label>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-accessory">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="btn-save-accessory">Salvar</button>
+            </div>
+          </div>
+        </div>
+
         <div id="edit-name-modal" class="modal-overlay hidden">
           <div class="modal-content" style="max-width:480px;">
             <div class="modal-header">
