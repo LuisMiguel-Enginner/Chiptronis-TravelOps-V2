@@ -76,6 +76,14 @@ export function buildTripReportModel(trip) {
         end: task.end_time,
         workType: task.work_type,
       })),
+      timeSlots: dateTasks
+        .map((task) =>
+          task.start_time && task.end_time
+            ? `${task.start_time} – ${task.end_time}`
+            : task.start_time || task.end_time || "",
+        )
+        .filter(Boolean)
+        .join(" / "),
     }));
     return {
       fullName: user.fullName,
@@ -85,6 +93,21 @@ export function buildTripReportModel(trip) {
       days,
     };
   });
+
+  const taskResults = tasks.map((task) => ({
+    id: task.id,
+    date: task.task_date,
+    startTime: task.start_time,
+    endTime: task.end_time,
+    workType: task.work_type,
+    location: task.location,
+    summary: task.summary,
+    pendingItems: task.pending_items,
+    completed: taskIsCompleted(task),
+    responsibles: parseTaskResponsibles(task).map((r) => r.full_name),
+  }));
+
+  const memberNames = (trip.members || []).map((m) => m.full_name).filter(Boolean);
 
   return {
     general: {
@@ -100,6 +123,7 @@ export function buildTripReportModel(trip) {
       priority: trip.priority || "normal",
       employee: owner?.full_name || "—",
       coordinator: owner?.manager_name || "—",
+      participants: memberNames.join(", ") || "—",
       objectiveMet: trip.checklist?.objective_met ?? null,
       objectiveNotes: trip.checklist?.objective_notes || "",
       peopleVisited: trip.checklist?.people_visited || "",
@@ -107,21 +131,24 @@ export function buildTripReportModel(trip) {
       generalPendingItems: trip.checklist?.pending_items || "",
       completedAt: trip.checklist?.completed_at || null,
     },
-    taskResults: tasks.map((task) => ({
-      date: task.task_date,
-      startTime: task.start_time,
-      endTime: task.end_time,
-      workType: task.work_type,
-      location: task.location,
-      summary: task.summary,
-    })),
+    taskResults,
     members: (trip.members || []).map((member) => ({
       fullName: member.full_name,
       sector: member.sector,
       positionTitle: member.position_title,
     })),
-    tasksCompleted: tasks.filter(taskIsCompleted),
-    tasksPending: tasks.filter((task) => !taskIsCompleted(task)),
+    tasksCompleted: tasks
+      .filter(taskIsCompleted)
+      .map((task) => ({
+        ...task,
+        responsibles: parseTaskResponsibles(task).map((r) => r.full_name),
+      })),
+    tasksPending: tasks
+      .filter((task) => !taskIsCompleted(task))
+      .map((task) => ({
+        ...task,
+        responsibles: parseTaskResponsibles(task).map((r) => r.full_name),
+      })),
     userSummaries,
     generatedAt: new Date().toISOString(),
   };

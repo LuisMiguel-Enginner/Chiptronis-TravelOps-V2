@@ -1,20 +1,8 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOGO_FULL = readFileSync(
-  path.resolve(__dirname, "..", "Frontend", "assets", "logo-full.svg"),
-  "utf8",
-);
-const LOGO_MARK = readFileSync(
-  path.resolve(__dirname, "..", "Frontend", "assets", "logo-mark.svg"),
-  "utf8",
-);
 
-const SYSTEM_NAME = "Chiptronic TravelOps";
+const REPORT_SYSTEM_NAME = "Chiptronic TravelOps";
 
-const THEME = {
+const REPORT_THEME = {
   brand: "#0f172a",
   brandLight: "#1e293b",
   accent: "#334155",
@@ -30,7 +18,175 @@ const THEME = {
   pendingBg: "#fffbeb",
 };
 
-export function renderTripReportHTML(model) {
+const STATUS_LABEL_MAP = {
+  planned: "Planejada",
+  in_progress: "Em andamento",
+  awaiting_report: "Aguardando relatório",
+  completed: "Concluída",
+  cancelled: "Cancelada",
+};
+
+function statusLabel(status) {
+  return STATUS_LABEL_MAP[status] || String(status || "—");
+}
+
+function parseTaskResponsibles(task) {
+  if (Array.isArray(task.responsibles) && task.responsibles.length) {
+    return task.responsibles;
+  }
+  const ids = Array.isArray(task.responsible_ids)
+    ? task.responsible_ids
+    : String(task.responsible_ids || task.responsible_id || "")
+        .split(",")
+        .map(Number)
+        .filter(Boolean);
+  return ids.map((id) => ({ id, full_name: task.responsible_full_name || "—" }));
+}
+
+function taskIsCompleted(task) {
+  return !String(task.pending_items || "").trim();
+}
+
+function calculateHours(tasks) {
+  let minutes = 0;
+  for (const task of tasks) {
+    const start = timeToMinutes(task.start_time);
+    const end = timeToMinutes(task.end_time);
+    if (start != null && end != null && end > start) minutes += end - start;
+  }
+  return Math.round((minutes / 60) * 100) / 100;
+}
+
+function timeToMinutes(value) {
+  if (!/^\d{2}:\d{2}$/.test(String(value || ""))) return null;
+  const [hours, minutes] = String(value).split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function buildTripReportModel(trip) {
+  const tasks = Array.isArray(trip.tasks) ? trip.tasks : [];
+  const owner = (trip.members || []).find(
+    (member) => Number(member.user_id || member.id) === Number(trip.user_id),
+  );
+  const assignedUsers = new Map();
+
+  for (const task of tasks) {
+    for (const responsible of parseTaskResponsibles(task)) {
+      const id = Number(responsible.id || responsible.user_id || 0);
+      const key = id || responsible.full_name || `task-${task.id}`;
+      if (!assignedUsers.has(key)) {
+        assignedUsers.set(key, {
+          id,
+          fullName: responsible.full_name || "Responsável",
+          tasks: [],
+        });
+      }
+      assignedUsers.get(key).tasks.push(task);
+    }
+  }
+
+  if (!assignedUsers.size && owner) {
+    assignedUsers.set(Number(owner.user_id || owner.id), {
+      id: Number(owner.user_id || owner.id),
+      fullName: owner.full_name,
+      tasks: [],
+    });
+  }
+
+  const userSummaries = [...assignedUsers.values()].map((user) => {
+    const byDate = new Map();
+    for (const task of user.tasks) {
+      if (!byDate.has(task.task_date)) byDate.set(task.task_date, []);
+      byDate.get(task.task_date).push(task);
+    }
+    const days = [...byDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, dateTasks]) => ({
+        date,
+        slots: dateTasks.map((task) => ({
+          start: task.start_time,
+          end: task.end_time,
+          workType: task.work_type,
+        })),
+        timeSlots: dateTasks
+          .map((task) =>
+            task.start_time && task.end_time
+              ? `${task.start_time} – ${task.end_time}`
+              : task.start_time || task.end_time || "",
+          )
+          .filter(Boolean)
+          .join(" / "),
+      }));
+    return {
+      fullName: user.fullName,
+      tasksCompleted: user.tasks.filter(taskIsCompleted).length,
+      tasksAssigned: user.tasks.length,
+      totalHoursWorked: user.tasks.length ? calculateHours(user.tasks) : null,
+      days,
+    };
+  });
+
+  const taskResults = tasks.map((task) => ({
+    id: task.id,
+    date: task.task_date,
+    startTime: task.start_time,
+    endTime: task.end_time,
+    workType: task.work_type,
+    location: task.location,
+    summary: task.summary,
+    pendingItems: task.pending_items,
+    completed: taskIsCompleted(task),
+    responsibles: parseTaskResponsibles(task).map((r) => r.full_name),
+  }));
+
+  const memberNames = (trip.members || []).map((m) => m.full_name).filter(Boolean);
+
+  return {
+    general: {
+      code: `TRIP-${trip.id}`,
+      status: trip.status,
+      statusLabel: trip.status_label || statusLabel(trip.status),
+      origin: trip.origin,
+      destination: trip.destination,
+      startDate: trip.start_date,
+      endDate: trip.end_date,
+      reason: trip.reason,
+      sector: trip.sector,
+      priority: trip.priority || "normal",
+      employee: owner?.full_name || "—",
+      coordinator: owner?.manager_name || "—",
+      participants: memberNames.join(", ") || "—",
+      objectiveMet: trip.checklist?.objective_met ?? null,
+      objectiveNotes: trip.checklist?.objective_notes || "",
+      peopleVisited: trip.checklist?.people_visited || "",
+      activitiesSummary: trip.checklist?.activities_summary || "",
+      generalPendingItems: trip.checklist?.pending_items || "",
+      completedAt: trip.checklist?.completed_at || null,
+    },
+    taskResults,
+    members: (trip.members || []).map((member) => ({
+      fullName: member.full_name,
+      sector: member.sector,
+      positionTitle: member.position_title,
+    })),
+    tasksCompleted: tasks
+      .filter(taskIsCompleted)
+      .map((task) => ({
+        ...task,
+        responsibles: parseTaskResponsibles(task).map((r) => r.full_name),
+      })),
+    tasksPending: tasks
+      .filter((task) => !taskIsCompleted(task))
+      .map((task) => ({
+        ...task,
+        responsibles: parseTaskResponsibles(task).map((r) => r.full_name),
+      })),
+    userSummaries,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+function renderTripReportHTML(model) {
   const { general, members, tasksCompleted, tasksPending, userSummaries, generatedAt } = model;
 
   return `<!DOCTYPE html>
@@ -38,11 +194,10 @@ export function renderTripReportHTML(model) {
 <head>
 <meta charset="UTF-8" />
 <title>Relatório de Viagem — ${esc(general.code)}</title>
-<style>${css()}</style>
+<style>${reportCSS()}</style>
 </head>
 <body>
   <div class="page">
-
     ${renderHeader(general)}
     ${renderDadosGerais(general, members)}
     ${renderDataHorarioUsuario(userSummaries)}
@@ -51,18 +206,18 @@ export function renderTripReportHTML(model) {
     ${renderAtividades("Atividades pendentes", tasksPending, "pending")}
     ${renderAssinaturas(general)}
     ${renderFooter(generatedAt, general.code)}
-
   </div>
 </body>
 </html>`;
 }
 
 function renderHeader(general) {
+  const logoMark = window.__REPORT_LOGOS__?.logoMark || "";
   return `
   <table class="report-header" role="presentation">
     <tr>
       <td class="report-header__logo">
-        <div class="report-header__logo-wrap">${LOGO_FULL}</div>
+        <div class="report-header__logo-wrap">${logoMark}</div>
       </td>
       <td class="report-header__title-cell">
         <h1>FORMULÁRIO DE VIAGENS</h1>
@@ -183,8 +338,7 @@ function renderChecklistEncerramento(general, taskResults = []) {
   return `
   <section class="card card--highlight card--priority">
     <div class="card__priority-ribbon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-      Checklist de encerramento — Prioritário
+      ✔ Checklist de encerramento — Prioritário
     </div>
     <h2 class="card__title card__title--main">Checklist de encerramento</h2>
 
@@ -230,10 +384,7 @@ function renderChecklistEncerramento(general, taskResults = []) {
         </table>
 
         <div class="task-card__row task-card__responsibles">
-          <span class="task-card__row-label">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Responsáveis:
-          </span>
+          <span class="task-card__row-label">👥 Responsáveis:</span>
           <span class="task-card__row-value">
             ${task.responsibles?.length ? task.responsibles.map(r => `<span class="responsor-tag">${esc(r)}</span>`).join(" ") : `<span class="text-muted-sub">Não definido</span>`}
           </span>
@@ -241,27 +392,18 @@ function renderChecklistEncerramento(general, taskResults = []) {
 
         ${task.location ? `
         <div class="task-card__row task-card__location">
-          <span class="task-card__row-label">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            Local:
-          </span>
+          <span class="task-card__row-label">📍 Local:</span>
           <span class="task-card__row-value">${esc(task.location)}</span>
         </div>` : ""}
 
         <div class="task-card__summary">
-          <div class="task-card__summary-label">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            Resumo do que foi feito:
-          </div>
+          <div class="task-card__summary-label">📝 Resumo do que foi feito:</div>
           <p>${esc(task.summary || "Sem resumo informado.")}</p>
         </div>
 
         ${task.pendingItems ? `
         <div class="task-card__pending">
-          <div class="task-card__pending-label">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Pendências neste trabalho:
-          </div>
+          <div class="task-card__pending-label">⚠️ Pendências neste trabalho:</div>
           <p>${esc(task.pendingItems)}</p>
         </div>` : ""}
       </div>`).join("") : '<p class="empty">Nenhuma tarefa registrada no checklist.</p>'}
@@ -287,8 +429,8 @@ function renderAtividades(title, tasks, tone) {
           <col style="width:12%">
           <col style="width:18%">
           <col style="width:18%">
-          <col style="width:${tone === "pending" ? "15%" : "15%"}">
-          <col style="width:${tone === "pending" ? "26%" : "26%"}">
+          <col style="width:15%">
+          <col style="width:26%">
         </colgroup>
         <thead>
           <tr>
@@ -322,19 +464,13 @@ function renderAtividades(title, tasks, tone) {
 function renderAssinaturas(general) {
   return `
   <section class="card signatures">
-    <h2 class="card__title card__title--main">Assinaturas</h2>
-
-    <div class="signatures__route-line">
-      Viagem ${esc(general.origin)} → ${esc(general.destination)} / ${esc(general.reason)}
-    </div>
-
     <table class="signatures__table" role="presentation">
       <tr>
         <td class="signature-cell">
           <div class="signature-space"></div>
           <div class="signature-line"></div>
           <div class="signature-name">${esc(general.employee || "Funcionário")}</div>
-          <div class="signature-role">ASSINATURA DO FUNCIONÁRIO</div>
+          <div class="signature-role">ASSINATURA DO INTEGRANTE</div>
           <div class="signature-date">Data: ____ / ____ / ______</div>
         </td>
         <td class="signature-cell">
@@ -350,13 +486,13 @@ function renderAssinaturas(general) {
 }
 
 function renderFooter(generatedAt, code) {
+  const logoMark = window.__REPORT_LOGOS__?.logoMark || "";
   return `
   <table class="report-footer" role="presentation">
     <tr>
       <td class="report-footer__brand-cell">
         <div class="report-footer__brand">
-          <div class="report-footer__mark-wrap">${LOGO_MARK}</div>
-          <span class="report-footer__system-name">${esc(SYSTEM_NAME)}</span>
+          <div class="report-footer__mark-wrap">${logoMark}</div>
         </div>
       </td>
       <td class="report-footer__meta-cell">
@@ -395,155 +531,152 @@ function esc(str) {
   }[c]));
 }
 
-function css() {
+function reportCSS() {
+  const T = REPORT_THEME;
   return `
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    color: ${THEME.textDark};
-    font-size: 13.5px;
-    line-height: 1.55;
+    color: #111827;
+    font-size: 15px;
+    line-height: 1.6;
     margin: 0;
+    padding: 0;
     background: #ffffff;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   .page {
-    width: 794px;
-    min-height: 1123px;
-    padding: 38px 48px 28px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+    min-height: auto;
+    padding: 0;
+    margin: 0;
     background: #ffffff;
+    color: #111827;
   }
-
-  /* ========== Cabeçalho ========== */
   .report-header {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 22px;
+    margin-bottom: 32px;
   }
   .report-header td { vertical-align: middle; }
-  .report-header__logo { width: 140px; padding-right: 14px; }
-  .report-header__title-cell { text-align: center; }
+  .report-header__logo { width: 160px; padding-right: 24px; }
+  .report-header__logo-wrap svg { width: 84px; height: 84px; display: block; border-radius: 22px; }
+  .report-header__title-cell { text-align: center; padding: 0 16px; }
   .report-header__title-cell h1 {
-    margin: 0 0 8px;
-    font-size: 26px;
+    margin: 0 0 12px;
+    font-size: 32px;
     font-weight: 800;
-    color: ${THEME.textDark};
-    letter-spacing: -0.3px;
+    color: #0f172a;
+    letter-spacing: -0.4px;
   }
   .report-header__divider {
-    height: 3px;
-    background: linear-gradient(90deg, #ef4444, ${THEME.brand});
-    border-radius: 2px;
+    height: 4px;
+    background: linear-gradient(90deg, #2563eb 0%, #0ea5e9 50%, #0f172a 100%);
+    border-radius: 3px;
   }
   .report-header__code-cell {
-    width: 130px;
+    width: 160px;
     text-align: right;
-    padding-left: 14px;
+    padding-left: 20px;
   }
   .report-code {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
-    color: ${THEME.brand};
-    margin-bottom: 6px;
+    color: #0f172a;
+    margin-bottom: 10px;
   }
-
-  /* ========== Badges ========== */
   .badge {
     display: inline-block;
-    padding: 3px 10px;
+    padding: 6px 14px;
     border-radius: 999px;
-    font-size: 11.5px;
+    font-size: 13px;
     font-weight: 600;
-    background: ${THEME.borderLight};
-    color: #475569;
+    background: #e5e7eb;
+    color: #374151;
     vertical-align: middle;
   }
-  .badge--ok { background: ${THEME.okSoft}; color: ${THEME.ok}; }
-  .badge--pending { background: ${THEME.pendingSoft}; color: ${THEME.pending}; }
-
-  /* ========== Cards ========== */
+  .badge--ok { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+  .badge--pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
   .card {
-    border: 1px solid ${THEME.border};
-    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 14px;
     background-color: #ffffff;
-    padding: 16px 18px 18px;
-    margin-bottom: 16px;
+    padding: 22px 24px 24px;
+    margin-bottom: 20px;
     page-break-inside: avoid;
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: none;
   }
   .card--highlight {
-    border-color: ${THEME.brand};
-    background-color: ${THEME.brandSoft};
-    border-width: 1.5px;
+    border-color: #cbd5e1;
+    background-color: #f8fafc;
+    border-width: 1px;
   }
   .card--priority {
     position: relative;
-    border-top: 3px solid ${THEME.brand};
+    border-top: 1px solid #cbd5e1;
   }
   .card__priority-ribbon {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: ${THEME.brand};
+    display: inline-block;
+    background: #0f172a;
     color: #ffffff;
-    padding: 5px 12px;
-    border-radius: 0 0 8px 8px;
-    font-size: 11.5px;
+    padding: 8px 16px;
+    border-radius: 0 0 10px 10px;
+    font-size: 13px;
     font-weight: 600;
-    margin: -16px 0 12px -4px;
+    margin: -22px 0 16px -4px;
     letter-spacing: .02em;
   }
   .card__title {
-    font-size: 14.5px;
-    margin: 0 0 14px;
-    color: ${THEME.brand};
+    font-size: 20px;
+    margin: 0 0 18px;
+    color: #0f172a;
     font-weight: 700;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
   }
   .card__title--main {
-    padding-bottom: 10px;
-    border-bottom: 2px solid ${THEME.borderLight};
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e5e7eb;
   }
   .card__subtitle {
-    font-size: 13.5px;
-    margin: 18px 0 10px;
-    color: ${THEME.brand};
+    font-size: 16px;
+    margin: 22px 0 12px;
+    color: #0f172a;
     font-weight: 700;
   }
   .card__subtitle--accent {
-    color: ${THEME.brand};
+    color: #0f172a;
     background: #ffffff;
-    padding: 8px 12px;
-    border-radius: 6px;
-    border-left: 3px solid ${THEME.brand};
-    margin-top: 18px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border-left: 4px solid #0f172a;
+    margin-top: 22px;
   }
-  .text-muted-sub { color: ${THEME.textMuted}; font-weight: 500; font-size: 12px; }
-
-  /* ========== Info blocks (estilo do exemplo enviado) ========== */
+  .text-muted-sub { color: #6b7280; font-weight: 500; font-size: 13px; }
   .info-block {
     margin: 0;
-    padding: 8px 0;
+    padding: 10px 0;
     border-bottom: 1px solid #f1f5f9;
   }
   .info-block__label {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
-    color: ${THEME.textDark};
+    color: #0f172a;
     display: inline;
   }
   .info-block__value {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 500;
     color: #1e293b;
     display: inline;
-    margin-left: 4px;
+    margin-left: 6px;
   }
   .two-col-table {
     width: 100%;
@@ -554,326 +687,296 @@ function css() {
     padding: 0;
     vertical-align: top;
   }
-  .two-col-table td:first-child .info-block { padding-right: 16px; }
-  .two-col-table td:last-child .info-block { padding-left: 16px; border-left: 1px solid #f1f5f9; }
-
-  /* ========== Long fields ========== */
-  .long-field { margin-top: 12px; }
+  .two-col-table td:first-child .info-block { padding-right: 24px; }
+  .two-col-table td:last-child .info-block { padding-left: 24px; border-left: 1px solid #f1f5f9; }
+  .long-field { margin-top: 16px; }
   .long-field__label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .03em;
-    color: ${THEME.textMuted};
-    margin-bottom: 5px;
+    color: #6b7280;
+    margin-bottom: 6px;
   }
   .long-field__value {
-    font-size: 13.5px;
+    font-size: 15px;
     margin: 0;
-    padding: 10px 12px;
+    padding: 12px 14px;
     background: #ffffff;
-    border: 1px solid ${THEME.borderLight};
-    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
     white-space: pre-wrap;
-    line-height: 1.6;
+    line-height: 1.7;
   }
   .long-field--pending .long-field__value {
-    background: ${THEME.pendingBg};
+    background: #fffbeb;
     border-color: #fde68a;
-    color: ${THEME.pending};
+    color: #92400e;
   }
-
-  /* ========== Tabelas gerais ========== */
   .table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    margin-top: 8px;
+    margin-top: 12px;
   }
   .table thead { display: table-header-group; }
   .table tr { page-break-inside: avoid; break-inside: avoid; }
   .table th, .table td {
     text-align: left;
-    padding: 8px 10px;
-    border-bottom: 1px solid ${THEME.borderLight};
-    font-size: 12.5px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 14px;
     vertical-align: top;
     overflow-wrap: anywhere;
     word-break: break-word;
+    color: #111827;
   }
   .table th {
-    color: ${THEME.textMuted};
+    color: #6b7280;
     font-weight: 600;
-    font-size: 11.5px;
+    font-size: 13px;
     text-transform: uppercase;
-    letter-spacing: .02em;
+    letter-spacing: .03em;
     background: #f8fafc;
-    border-bottom: 1px solid ${THEME.border};
+    border-bottom: 1px solid #d1d5db;
   }
-  .participants-wrap { margin-top: 16px; }
+  .participants-wrap { margin-top: 20px; }
   .participants-table td:first-child, .participants-table th:first-child { font-weight: 600; }
-  .text--pending { color: ${THEME.pending}; font-weight: 500; }
-  .text-summary { color: #475569; }
+  .text--pending { color: #92400e; font-weight: 500; }
+  .text-summary { color: #374151; }
   .empty {
-    color: ${THEME.textMuted};
-    font-size: 12.5px;
-    padding: 16px;
+    color: #6b7280;
+    font-size: 14px;
+    padding: 20px;
     text-align: center;
     background: #f8fafc;
-    border-radius: 6px;
+    border-radius: 8px;
   }
   .table-wrap { overflow-x: hidden; }
-
-  /* ========== Data e Horário por Usuário ========== */
   .user-schedule-block {
     background: #ffffff;
-    border: 1px solid ${THEME.borderLight};
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
   }
   .user-schedule-block__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 8px;
-    margin-bottom: 8px;
-    border-bottom: 1px dashed ${THEME.borderLight};
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #e5e7eb;
   }
   .user-schedule-block__name {
     font-weight: 700;
-    font-size: 14px;
-    color: ${THEME.brand};
+    font-size: 17px;
+    color: #0f172a;
+    display: block;
   }
   .user-schedule-block__meta {
-    font-size: 11.5px;
-    color: ${THEME.textMuted};
+    font-size: 13px;
+    color: #6b7280;
     font-weight: 500;
+    display: block;
+    margin-top: 5px;
   }
   .day-schedule {
-    font-size: 14px;
-    padding: 6px 0;
-    line-height: 1.7;
+    font-size: 17px;
+    padding: 8px 0;
+    line-height: 1.8;
   }
   .day-schedule__date {
     font-weight: 700;
-    color: ${THEME.textDark};
-    margin-right: 6px;
+    color: #0f172a;
+    margin-right: 10px;
   }
   .day-schedule__slots {
-    color: #1e40af;
-    font-weight: 500;
+    color: #1d4ed8;
+    font-weight: 600;
     letter-spacing: 0.01em;
   }
-
-  /* ========== Task cards dentro do Checklist ========== */
   .task-card {
     background: #ffffff;
-    border: 1px solid ${THEME.border};
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-bottom: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
     page-break-inside: avoid;
     break-inside: avoid;
   }
-  .task-card--done { border-left: 4px solid ${THEME.ok}; }
-  .task-card--pending { border-left: 4px solid #f59e0b; }
-
+  .task-card--done { border-left: 5px solid #166534; }
+  .task-card--pending { border-left: 5px solid #d97706; }
   .task-card__header {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid ${THEME.borderLight};
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e7eb;
   }
   .task-card__header td { padding: 0; vertical-align: middle; }
   .task-card__title-col { text-align: left; }
   .task-card__when-col { text-align: right; }
-
   .task-card__index {
     font-weight: 800;
-    color: ${THEME.brand};
-    margin-right: 5px;
-    font-size: 15px;
+    color: #0f172a;
+    margin-right: 8px;
+    font-size: 17px;
   }
   .task-card__worktype {
     font-weight: 700;
-    font-size: 14px;
-    color: ${THEME.textDark};
-    margin-right: 8px;
+    font-size: 17px;
+    color: #0f172a;
+    margin-right: 12px;
   }
   .task-card__status-badge {
     display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 700;
   }
-  .task-card__status-badge--done { background: ${THEME.okSoft}; color: ${THEME.ok}; }
-  .task-card__status-badge--pending { background: ${THEME.pendingSoft}; color: ${THEME.pending}; }
-
+  .task-card__status-badge--done { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+  .task-card__status-badge--pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
   .task-card__date {
     display: block;
     font-weight: 700;
-    color: ${THEME.textDark};
-    font-size: 12.5px;
+    color: #0f172a;
+    font-size: 14px;
   }
   .task-card__time {
     display: block;
-    color: #2563eb;
+    color: #1d4ed8;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 15px;
     font-variant-numeric: tabular-nums;
-    margin-top: 2px;
+    margin-top: 4px;
   }
-
   .task-card__row {
-    display: flex;
-    gap: 8px;
-    padding: 5px 0;
-    align-items: flex-start;
+    padding: 8px 0;
   }
   .task-card__row-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    font-weight: 600;
-    color: ${THEME.textMuted};
-    flex-shrink: 0;
-    min-width: 90px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 4px;
   }
   .task-card__row-value {
-    font-size: 13px;
-    color: ${THEME.textDark};
+    font-size: 15px;
+    color: #0f172a;
     font-weight: 500;
-    flex: 1;
   }
   .responsor-tag {
     display: inline-block;
-    padding: 2px 8px;
-    background: ${THEME.brandSoft};
-    border: 1px solid ${THEME.borderLight};
-    border-radius: 4px;
-    font-size: 12px;
-    margin-right: 5px;
-    margin-bottom: 3px;
-    color: ${THEME.brand};
+    padding: 4px 12px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-right: 8px;
+    margin-bottom: 5px;
+    color: #0f172a;
     font-weight: 600;
   }
-
   .task-card__summary, .task-card__pending {
-    margin-top: 8px;
+    margin-top: 10px;
   }
   .task-card__summary-label, .task-card__pending-label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    color: ${THEME.brand};
-    margin-bottom: 5px;
+    color: #0f172a;
+    margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: .02em;
   }
   .task-card__summary p, .task-card__pending p {
     margin: 0;
-    padding: 10px 12px;
-    border-radius: 6px;
-    font-size: 13.5px;
-    line-height: 1.65;
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1.7;
     white-space: pre-wrap;
   }
   .task-card__summary p {
-    background: ${THEME.brandSoft};
-    border: 1px solid ${THEME.borderLight};
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
   }
-  .task-card__pending-label { color: ${THEME.pending}; }
+  .task-card__pending-label { color: #92400e; }
   .task-card__pending p {
-    background: ${THEME.pendingBg};
+    background: #fffbeb;
     border: 1px solid #fde68a;
-    color: ${THEME.pending};
+    color: #92400e;
   }
-
-  /* ========== Assinaturas ========== */
-  .signatures { page-break-before: always; break-before: page; page-break-inside: avoid; break-inside: avoid; }
-  .signatures__route-line {
-    text-align: center;
-    padding: 40px 0 10px;
-    font-size: 16px;
-    font-weight: 500;
-    color: ${THEME.textDark};
-    line-height: 1.6;
-  }
+  .signatures { page-break-before: always; break-before: page; page-break-inside: avoid; break-inside: avoid; padding-top: 50px; }
   .signatures__table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin-top: 0;
   }
   .signature-cell {
     width: 50%;
     text-align: center;
     vertical-align: bottom;
-    padding: 0 18px;
+    padding: 0 30px;
   }
-  .signature-space {
-    height: 110px;
-  }
+  .signature-space { height: 90px; }
   .signature-line {
-    border-top: 1.5px solid ${THEME.textDark};
+    border-top: 1.5px solid #0f172a;
     width: 100%;
     margin: 0 auto;
   }
   .signature-name {
-    margin-top: 10px;
+    margin-top: 14px;
     font-weight: 700;
-    font-size: 13.5px;
-    color: ${THEME.textDark};
+    font-size: 16px;
+    color: #0f172a;
   }
   .signature-role {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
-    color: ${THEME.textDark};
-    margin-top: 3px;
+    color: #0f172a;
+    margin-top: 5px;
     letter-spacing: .04em;
   }
   .signature-date {
-    font-size: 12px;
-    color: ${THEME.textMuted};
-    margin-top: 12px;
+    font-size: 14px;
+    color: #6b7280;
+    margin-top: 16px;
     font-weight: 500;
   }
-
-  /* ========== Rodapé temático ========== */
   .report-footer {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 30px;
-    background: ${THEME.brand};
-    border-radius: 8px 8px 0 0;
+    margin-top: 40px;
+    background: #0f172a;
+    border-radius: 12px 12px 0 0;
     overflow: hidden;
     page-break-inside: avoid;
     break-inside: avoid;
   }
   .report-footer td {
-    padding: 12px 16px;
-    font-size: 10.5px;
-    background: ${THEME.brand};
-    color: #ffffff;
+    padding: 18px 24px;
+    font-size: 13px;
+    background: #0f172a;
+    color: #e2e8f0;
     vertical-align: middle;
   }
   .report-footer__brand-cell { width: 55%; }
-  .report-footer__meta-cell { width: 45%; text-align: right; color: #cbd5e1; }
+  .report-footer__meta-cell { width: 45%; text-align: right; color: #cbd5e1; font-weight: 500; }
   .report-footer__brand {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 0;
   }
+  .report-footer__mark-wrap svg { width: 44px; height: 44px; display: block; border-radius: 10px; }
   .report-footer__system-name {
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: .03em;
-    color: #ffffff;
+    display: none;
   }
   `;
 }
+
+window.TripReport = {
+  build: buildTripReportModel,
+  render: renderTripReportHTML,
+  buildAndRender(trip) {
+    return renderTripReportHTML(buildTripReportModel(trip));
+  },
+};

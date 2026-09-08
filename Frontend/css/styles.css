@@ -1445,6 +1445,42 @@ html[data-theme='dark'] .notif-item p {
 .modal .btn {
   min-width: 110px;
 }
+.modal--wide {
+  width: min(960px, calc(100vw - 2rem));
+}
+.modal-body:has(.report-preview-frame-wrap) {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.report-preview-frame-wrap {
+  width: 100%;
+  height: clamp(380px, 62vh, 640px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #ffffff;
+}
+.report-preview-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.modal-footer--spread {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.btn-ghost {
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--muted) !important;
+  margin-left: auto;
+}
+.btn-ghost:hover {
+  background: var(--surface-alt) !important;
+  color: var(--text) !important;
+}
 
 /* Command palette (Ctrl+K) */
 .cp-overlay {

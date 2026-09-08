@@ -106,30 +106,54 @@ function showReportExportOptions(reportBlob) {
   const existing = document.getElementById("report-export-modal");
   existing?.remove();
 
+  const previewUrl = URL.createObjectURL(
+    new Blob([reportBlob], { type: "text/html;charset=utf-8" }),
+  );
+
   const modal = document.createElement("div");
   modal.id = "report-export-modal";
   modal.className = "modal-overlay";
   modal.innerHTML = `
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="report-export-title">
+    <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="report-export-title">
       <div class="modal-head">
-        <div class="modal-icon info">↓</div>
+        <div class="modal-icon info">📄</div>
         <div>
-          <h3 id="report-export-title" class="modal-title">Exportar relatório</h3>
-          <p class="modal-text">Escolha o formato para salvar o relatório da viagem.</p>
+          <h3 id="report-export-title" class="modal-title">Relatório de viagem pronto</h3>
+          <p class="modal-text">Prévia abaixo. Escolha uma opção para visualizar ou exportar.</p>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-export="word">Exportar Word</button>
-        <button type="button" class="btn btn-primary" data-export="pdf">Exportar PDF</button>
-        <button type="button" class="btn btn-secondary" data-export="cancel">Cancelar</button>
+      <div class="modal-body">
+        <div class="report-preview-frame-wrap">
+          <iframe class="report-preview-frame" src="${previewUrl}" title="Prévia do relatório"></iframe>
+        </div>
+      </div>
+      <div class="modal-footer modal-footer--spread">
+        <button type="button" class="btn btn-secondary" data-export="preview">
+          🔍 Abrir em nova aba
+        </button>
+        <button type="button" class="btn btn-secondary" data-export="word">
+          📝 Exportar Word
+        </button>
+        <button type="button" class="btn btn-primary" data-export="pdf">
+          📑 Exportar PDF
+        </button>
+        <button type="button" class="btn btn-ghost" data-export="cancel">Fechar</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
 
-  const close = () => modal.remove();
+  const close = () => {
+    URL.revokeObjectURL(previewUrl);
+    modal.remove();
+  };
   modal.querySelector('[data-export="cancel"]').addEventListener("click", close);
   modal.addEventListener("click", (event) => {
     if (event.target === modal) close();
+  });
+
+  modal.querySelector('[data-export="preview"]').addEventListener("click", () => {
+    const win = window.open(previewUrl, "_blank");
+    if (!win) showAlert(alertEl, "O navegador bloqueou a abertura. Permita pop-ups para este site.");
   });
 
   modal.querySelector('[data-export="word"]').addEventListener("click", () => {
@@ -149,43 +173,123 @@ function showReportExportOptions(reportBlob) {
       return;
     }
 
-    const reportUrl = URL.createObjectURL(reportBlob);
-    const frame = document.createElement("iframe");
-    frame.setAttribute("aria-hidden", "true");
-    frame.style.position = "fixed";
-    frame.style.left = "-100000px";
-    frame.style.top = "0";
-    frame.style.width = "794px";
-    frame.style.height = "1123px";
-    frame.style.border = "0";
-    document.body.appendChild(frame);
-
-    frame.onload = async () => {
+    (async () => {
       try {
-        const reportDocument = frame.contentDocument;
-        const reportPage = reportDocument?.querySelector(".page");
-        if (!reportPage || !reportPage.innerHTML.trim()) {
-          throw new Error("O conteúdo do relatório não foi renderizado.");
+        let reportHTML;
+        if (typeof reportBlob === "string") {
+          reportHTML = reportBlob;
+        } else if (reportBlob instanceof Blob || (reportBlob && typeof reportBlob.arrayBuffer === "function")) {
+          const buf = await reportBlob.arrayBuffer();
+          reportHTML = new TextDecoder("utf-8").decode(buf);
+        } else if (reportBlob && reportBlob.byteLength !== undefined) {
+          reportHTML = new TextDecoder("utf-8").decode(reportBlob);
+        } else {
+          reportHTML = String(reportBlob);
         }
-        frame.style.height = `${Math.max(1123, reportPage.scrollHeight + 20)}px`;
+        const A4_WIDTH_PX = 794;
+        const MARGIN_MM = 14;
+        const MARGIN_PX_LEFT_RIGHT = Math.round((MARGIN_MM / 25.4) * 96 * 2);
+        const CONTENT_W = Math.max(680, A4_WIDTH_PX - MARGIN_PX_LEFT_RIGHT);
+
+        const stage = document.createElement("div");
+        stage.id = "pdf-render-stage";
+        Object.assign(stage.style, {
+          position: "absolute",
+          left: "0",
+          top: "0",
+          width: `${CONTENT_W}px`,
+          height: "auto",
+          background: "#ffffff",
+          zIndex: "999999",
+          margin: "0",
+          padding: "0",
+          pointerEvents: "none",
+          overflow: "visible",
+          opacity: "0",
+          visibility: "hidden",
+          transform: "none",
+        });
+        document.body.appendChild(stage);
+        document.body.style.overflow = "hidden";
+        stage.innerHTML = reportHTML;
+        const pageEl = stage.querySelector(".page");
+        if (!pageEl) throw new Error("Falha ao montar o relatório para PDF.");
+
+        pageEl.style.width = `${CONTENT_W}px`;
+        pageEl.style.maxWidth = `${CONTENT_W}px`;
+        pageEl.style.minWidth = `${CONTENT_W}px`;
+        pageEl.style.margin = "0 auto";
+        pageEl.style.background = "#ffffff";
+        pageEl.style.display = "block";
+        pageEl.style.boxSizing = "border-box";
+        stage.style.width = `${CONTENT_W + 40}px`;
+        stage.style.padding = "0 20px";
+        stage.style.overflow = "visible";
+
+        const svgEls = stage.querySelectorAll("svg");
+        svgEls.forEach((svg) => {
+          try {
+            svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+            let w = svg.getAttribute("width") || svg.clientWidth || svg.viewBox?.baseVal?.width || 64;
+            let h = svg.getAttribute("height") || svg.clientHeight || svg.viewBox?.baseVal?.height || 64;
+            w = parseFloat(w) || 64;
+            h = parseFloat(h) || 64;
+            svg.setAttribute("width", `${w}`);
+            svg.setAttribute("height", `${h}`);
+            svg.style.width = `${w}px`;
+            svg.style.height = `${h}px`;
+            svg.style.display = "block";
+          } catch {}
+        });
+
+        const allImgs = stage.querySelectorAll("img");
+        await Promise.all([...allImgs].map((img) =>
+          img.complete ? Promise.resolve() :
+          new Promise((res) => { img.onload = res; img.onerror = res; setTimeout(res, 1500); })
+        ));
+
+        if (document.fonts?.ready) {
+          try { await document.fonts.ready; } catch {}
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1100));
+
+        const finalHeight = Math.max(1123, pageEl.scrollHeight + 200);
+        stage.style.height = `${finalHeight}px`;
+        stage.style.visibility = "visible";
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
         await window.html2pdf().set({
-          margin: 0,
+          margin: [MARGIN_MM, MARGIN_MM, MARGIN_MM, MARGIN_MM],
           filename: `relatorio-viagem-${tripId}.pdf`,
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            letterRendering: true,
+            logging: false,
+            allowTaint: true,
+            foreignObjectRendering: false,
+            removeContainer: false,
+            ignoreElements: (el) => el.tagName && el.tagName.toLowerCase() === "script",
+          },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["css", "legacy"] },
-        }).from(reportPage).save();
+          pagebreak: {
+            mode: ["css"],
+            avoid: [".card", ".task-card", ".user-schedule-block", ".report-footer", ".signatures"],
+          },
+        }).from(pageEl).save();
+
+        document.getElementById("pdf-render-stage")?.remove();
+        document.body.style.overflow = "";
         close();
       } catch (error) {
+        console.error(error);
         showAlert(alertEl, error.message || "Não foi possível exportar o PDF.");
-      } finally {
-        URL.revokeObjectURL(reportUrl);
-        frame.remove();
+        document.getElementById("pdf-render-stage")?.remove();
+        document.body.style.overflow = "";
       }
-    };
-    frame.src = reportUrl;
+    })();
   });
 }
 
@@ -305,13 +409,16 @@ async function init() {
   });
   document.getElementById('btn-trip-report')?.addEventListener('click', () => {
     if (window.__currentTrip?.status !== "completed") return;
-    api.fetchTripReport(tripId)
-      .then((blob) => {
-        showReportExportOptions(blob);
-      })
-      .catch((error) => {
-        showAlert(alertEl, error.message || "Não foi possível gerar o relatório.");
-      });
+    try {
+      if (typeof window.TripReport?.buildAndRender !== "function") {
+        throw new Error("O renderizador de relatórios ainda está carregando. Tente novamente.");
+      }
+      const html = window.TripReport.buildAndRender(window.__currentTrip);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      showReportExportOptions(blob);
+    } catch (error) {
+      showAlert(alertEl, error.message || "Não foi possível gerar o relatório.");
+    }
   });
 }
 

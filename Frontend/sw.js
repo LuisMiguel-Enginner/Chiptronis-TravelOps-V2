@@ -1,4 +1,4 @@
-const CACHE_NAME = 'travelops-shell-v32';
+const CACHE_NAME = 'travelops-shell-v42';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -18,6 +18,7 @@ const APP_SHELL = [
   '/js/viagens.js',
   '/js/trip-new.js',
   '/js/trip-detail.js',
+  '/js/trip-report-frontend.js',
   '/js/trip-render.js',
   '/js/trip-history.js',
   '/js/trip-task-edit.js',
