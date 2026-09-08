@@ -454,13 +454,11 @@ function renderAssinaturas(general) {
           <div class="signature-line-simple"></div>
           <div class="signature-placeholder">${esc(general.employee || "Funcionário")}</div>
           <div class="signature-label">ASSINATURA DO INTEGRANTE</div>
-          <div class="signature-date-field">Data: ____ / ____ / ______</div>
         </td>
         <td class="signature-block signature-block--last">
           <div class="signature-line-simple"></div>
           <div class="signature-placeholder">${esc(general.coordinator || "Coordenador")}</div>
           <div class="signature-label">ASSINATURA DO LÍDER</div>
-          <div class="signature-date-field">Data: ____ / ____ / ______</div>
         </td>
       </tr>
     </table>
