@@ -181,7 +181,17 @@ function renderEquipment(t) {
           <span class="tdb-equipment-count">${items.length}</span>
         </div>
         <div class="tdb-equipment-items">
-          ${items.map((item) => `
+          ${items.map((item) => {
+            const accessories = Array.isArray(item.accessories) ? item.accessories : [];
+            const accessoryHtml = accessories.length
+              ? '<div class="equipment-accessory-list">' + accessories.map((accessory) => `
+                  <span class="equipment-accessory-chip ${accessory.required ? 'is-required' : 'is-optional'}">
+                    ${escapeHtml(accessory.name)}${accessory.required ? ' • obrigatório' : ' • opcional'}
+                  </span>
+                `).join("") + '</div>'
+              : '';
+
+            return `
             <div class="tdb-equipment-item ${item.carried ? "is-carried" : "is-pending"}">
               <label class="tdb-checkbox" style="cursor:default">
                 <input type="checkbox" disabled ${item.carried ? "checked" : ""}>
@@ -191,12 +201,16 @@ function renderEquipment(t) {
                   ` : ""}
                 </span>
               </label>
-              <span class="tdb-equipment-name">${escapeHtml(item.name)}</span>
+              <div class="tdb-equipment-meta">
+                <span class="tdb-equipment-name">${escapeHtml(item.name)}</span>
+                ${accessoryHtml}
+              </div>
               <span class="tdb-equipment-status ${item.carried ? "status-carried" : "status-pending"}">
                 ${item.carried ? "Carregado" : "Pendente"}
               </span>
             </div>
-          `).join("")}
+          `;
+          }).join("")}
         </div>
       </div>
     `);

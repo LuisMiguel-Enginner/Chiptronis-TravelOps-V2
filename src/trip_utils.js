@@ -151,6 +151,13 @@ function parseEquipmentChecklist(value) {
           name: String(item?.name || '').trim(),
           equipment_type: String(item?.equipment_type || '').trim(),
           carried: Boolean(item?.carried),
+          accessories: Array.isArray(item?.accessories)
+            ? item.accessories.map((accessory) => ({
+                id: accessory?.id ?? null,
+                name: String(accessory?.name || '').trim(),
+                required: Boolean(accessory?.required),
+              })).filter((accessory) => accessory.name)
+            : [],
         })).filter((item) => item.name)
       : [];
   } catch {

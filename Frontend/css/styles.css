@@ -2320,6 +2320,14 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
   border-color: var(--border);
 }
 
+.tdb-equipment-meta {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
 .tdb-equipment-name {
   flex: 1;
   font-size: 0.95rem;
