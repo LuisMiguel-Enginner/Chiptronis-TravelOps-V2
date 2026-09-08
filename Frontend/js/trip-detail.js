@@ -117,7 +117,7 @@ function keepColor(c) {
 function applyWordInlineStyles(rootEl) {
   if (!rootEl) return;
 
-  const bgEls = rootEl.querySelectorAll(".card, .card--highlight, .card__priority-ribbon, .badge, .badge--ok, .badge--pending, .task-card__status-badge, .task-card__status-badge--done, .task-card__status-badge--pending, .long-field__value, .long-field--pending .long-field__value, .task-card__summary p, .task-card__pending p, .responsor-tag, .user-schedule-block, .report-footer, .report-footer td, .empty, .table th, .card__subtitle--accent, .signatures, .signatures__table");
+  const bgEls = rootEl.querySelectorAll(".card, .card--highlight, .card__priority-ribbon, .badge, .badge--ok, .badge--pending, .task-card__status-badge, .task-card__status-badge--done, .task-card__status-badge--pending, .long-field__value, .long-field--pending .long-field__value, .task-card__summary p, .task-card__pending p, .responsor-tag, .user-schedule-block, .report-footer, .report-footer td, .empty, .table th, .card__subtitle--accent, .signatures-wrap, .signatures-table, .signature-block, .signature-line-simple");
   for (const el of bgEls) {
     try {
       const cs = window.getComputedStyle(el);
@@ -154,7 +154,7 @@ function applyWordInlineStyles(rootEl) {
     } catch (e) {}
   }
 
-  const textEls = rootEl.querySelectorAll("h1, h2, h3, h4, .report-code, .card__title, .card__subtitle, .info-block__label, .info-block__value, .long-field__label, .task-card__worktype, .task-card__index, .task-card__date, .task-card__time, .task-card__row-label, .task-card__summary-label, .task-card__pending-label, .user-schedule-block__name, .user-schedule-block__meta, .day-schedule__date, .day-schedule__slots, .signature-name, .signature-role, .signature-date, .report-footer td, .badge, .card__priority-ribbon, .task-card__status-badge, .table th, .text-muted-sub, .text--pending");
+  const textEls = rootEl.querySelectorAll("h1, h2, h3, h4, .report-code, .card__title, .card__subtitle, .info-block__label, .info-block__value, .long-field__label, .task-card__worktype, .task-card__index, .task-card__date, .task-card__time, .task-card__row-label, .task-card__summary-label, .task-card__pending-label, .user-schedule-block__name, .user-schedule-block__meta, .day-schedule__date, .day-schedule__slots, .signature-placeholder, .signature-label, .signature-date-field, .report-footer td, .badge, .card__priority-ribbon, .task-card__status-badge, .table th, .text-muted-sub, .text--pending");
   for (const el of textEls) {
     try {
       const cs = window.getComputedStyle(el);
@@ -231,13 +231,14 @@ body { font-family: "Calibri", Arial, sans-serif; color: #111827; font-size: 11p
 .task-card { border: 1pt solid #d1d5db; border-radius: 8pt; padding: 11pt 12pt; margin-bottom: 10pt; }
 .task-card--done { border-left: 3.5pt solid #166534; }
 .task-card--pending { border-left: 3.5pt solid #d97706; }
-.signatures { page-break-before: always; padding-top: 35pt; }
-.signatures__table { width: 100%; border-collapse: collapse; }
-.signature-cell { width: 50%; text-align: center; vertical-align: bottom; padding: 0 20pt; }
-.signature-space { height: 60pt; }
-.signature-line { border-top: 1pt solid #0f172a; width: 100%; margin: 0 auto; }
-.signature-name { margin-top: 10pt; font-weight: 700; font-size: 11.5pt; color: #0f172a; }
-.signature-role { font-size: 10.5pt; font-weight: 600; color: #0f172a; margin-top: 3pt; }
+.signatures-wrap { page-break-before: always; padding-top: 70pt; margin-top: 50pt; background:#fff; page-break-inside: avoid; }
+.signatures-table { width: 100%; border-collapse: collapse; border:0; background:#fff; }
+.signature-block { width: 50%; text-align: center; vertical-align: top; padding: 0 24pt 50pt 24pt; background:#fff; border:0 !important; }
+.signature-block--last { padding: 0 10pt 50pt 40pt; }
+.signature-line-simple { border: 0; border-top: 1pt solid #0f172a; width: 100%; margin: 0 auto 14pt auto; height:1pt; background:#fff; }
+.signature-placeholder { font-weight: 700; font-size: 14pt; color: #0f172a; line-height: 1.3; }
+.signature-label { font-size: 11pt; font-weight: 600; color: #0f172a; margin-top: 6pt; letter-spacing: 0.04em; }
+.signature-date-field { font-size: 10pt; color: #6b7280; margin-top: 20pt; font-weight: 500; }
 .report-footer { width: 100%; border-collapse: collapse; margin-top: 28pt; background: #0f172a; border-radius: 8pt 8pt 0 0; }
 .report-footer td { padding: 12pt 16pt; font-size: 9pt; background: #0f172a; color: #e2e8f0; }
 .report-footer__mark-wrap img { width: 29pt; height: 29pt; display: block; }

@@ -224,7 +224,7 @@ function renderHeader(general) {
         <div class="report-header__divider"></div>
       </td>
       <td class="report-header__code-cell">
-        <div class="report-code">${esc(general.code)}</div>
+        <div class="report-code">RG-RH-20</div>
         ${badgeStatus(general.status, general.statusLabel)}
       </td>
     </tr>
@@ -463,22 +463,20 @@ function renderAtividades(title, tasks, tone) {
 
 function renderAssinaturas(general) {
   return `
-  <section class="card signatures">
-    <table class="signatures__table" role="presentation">
+  <section class="signatures-wrap">
+    <table class="signatures-table" role="presentation">
       <tr>
-        <td class="signature-cell">
-          <div class="signature-space"></div>
-          <div class="signature-line"></div>
-          <div class="signature-name">${esc(general.employee || "Funcionário")}</div>
-          <div class="signature-role">ASSINATURA DO INTEGRANTE</div>
-          <div class="signature-date">Data: ____ / ____ / ______</div>
+        <td class="signature-block">
+          <div class="signature-line-simple"></div>
+          <div class="signature-placeholder">${esc(general.employee || "Funcionário")}</div>
+          <div class="signature-label">ASSINATURA DO INTEGRANTE</div>
+          <div class="signature-date-field">Data: ____ / ____ / ______</div>
         </td>
-        <td class="signature-cell">
-          <div class="signature-space"></div>
-          <div class="signature-line"></div>
-          <div class="signature-name">${esc(general.coordinator || "Coordenador")}</div>
-          <div class="signature-role">ASSINATURA DO LÍDER</div>
-          <div class="signature-date">Data: ____ / ____ / ______</div>
+        <td class="signature-block signature-block--last">
+          <div class="signature-line-simple"></div>
+          <div class="signature-placeholder">${esc(general.coordinator || "Coordenador")}</div>
+          <div class="signature-label">ASSINATURA DO LÍDER</div>
+          <div class="signature-date-field">Data: ____ / ____ / ______</div>
         </td>
       </tr>
     </table>
@@ -496,7 +494,7 @@ function renderFooter(generatedAt, code) {
         </div>
       </td>
       <td class="report-footer__meta-cell">
-        Relatório ${esc(code)} · Gerado em ${formatDateTime(generatedAt)}
+        Relatório RG-RH-20 · Gerado em ${formatDateTime(generatedAt)}
       </td>
     </tr>
   </table>`;
@@ -905,47 +903,64 @@ function reportCSS() {
     border: 1px solid #fde68a;
     color: #92400e;
   }
-  .signatures { page-break-before: always; break-before: page; page-break-inside: avoid; break-inside: avoid; padding-top: 50px; }
-  .signatures__table {
+  .signatures-wrap {
+    page-break-before: always;
+    break-before: page;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    padding-top: 90px;
+    margin-top: 70px;
+  }
+  .signatures-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 0;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
   }
-  .signature-cell {
+  .signature-block {
     width: 50%;
     text-align: center;
-    vertical-align: bottom;
-    padding: 0 30px;
+    vertical-align: top;
+    padding: 0 36px 60px 36px;
+    background: transparent;
+    border: 0;
   }
-  .signature-space { height: 90px; }
-  .signature-line {
-    border-top: 1.5px solid #0f172a;
+  .signature-block--last {
+    padding: 0 16px 60px 56px;
+  }
+  .signature-line-simple {
+    border: 0;
+    border-top: 1.2px solid #0f172a;
     width: 100%;
-    margin: 0 auto;
+    margin: 0 auto 18px auto;
+    height: 1px;
+    background: transparent;
   }
-  .signature-name {
-    margin-top: 14px;
+  .signature-placeholder {
     font-weight: 700;
-    font-size: 16px;
+    font-size: 18px;
     color: #0f172a;
+    line-height: 1.3;
   }
-  .signature-role {
+  .signature-label {
     font-size: 15px;
     font-weight: 600;
     color: #0f172a;
-    margin-top: 5px;
+    margin-top: 8px;
     letter-spacing: .04em;
   }
-  .signature-date {
+  .signature-date-field {
     font-size: 14px;
     color: #6b7280;
-    margin-top: 16px;
+    margin-top: 26px;
     font-weight: 500;
   }
   .report-footer {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 40px;
+    margin-top: 28px;
     background: #0f172a;
     border-radius: 12px 12px 0 0;
     overflow: hidden;
@@ -1427,51 +1442,63 @@ body {
 }
 
 /* ===== ASSINATURAS ===== */
-.signatures {
+.signatures-wrap {
   page-break-before: always;
-  padding-top: 35pt;
+  padding-top: 70pt;
+  margin-top: 50pt;
   page-break-inside: avoid;
+  background: #ffffff !important;
 }
-.signatures__table {
+.signatures-table {
   width: 100%;
   border-collapse: collapse;
   mso-table-lspace: 0pt;
   mso-table-rspace: 0pt;
   margin-top: 0;
+  border: 0;
+  background: #ffffff !important;
 }
-.signature-cell {
+.signature-block {
   width: 50%;
   text-align: center;
-  vertical-align: bottom;
-  padding: 0 20pt;
-  mso-padding-alt: 0 20pt 0 20pt;
+  vertical-align: top;
+  padding: 0 24pt 50pt 24pt;
+  background: #ffffff !important;
+  mso-padding-alt: 0 24pt 50pt 24pt;
+  border: 0 !important;
 }
-.signature-space { height: 60pt; font-size: 1pt; line-height: 1pt; }
-.signature-line {
+.signature-block--last {
+  padding: 0 10pt 50pt 40pt;
+  mso-padding-alt: 0 10pt 50pt 40pt;
+}
+.signature-line-simple {
+  border: 0;
   border-top: 1pt solid #0f172a;
   width: 100%;
-  margin: 0 auto;
+  margin: 0 auto 14pt auto;
   mso-border-top-alt: solid #0f172a 0.75pt;
+  height: 1pt;
+  background: #ffffff !important;
 }
-.signature-name {
-  margin-top: 10pt;
+.signature-placeholder {
   font-weight: 700;
-  font-size: 11.5pt;
+  font-size: 14pt;
   color: #0f172a;
+  line-height: 1.3;
   font-family: "Calibri", "Arial", sans-serif;
 }
-.signature-role {
-  font-size: 10.5pt;
+.signature-label {
+  font-size: 11pt;
   font-weight: 600;
   color: #0f172a;
-  margin-top: 3pt;
+  margin-top: 6pt;
   letter-spacing: 0.04em;
   font-family: "Calibri", "Arial", sans-serif;
 }
-.signature-date {
+.signature-date-field {
   font-size: 10pt;
   color: #6b7280;
-  margin-top: 11pt;
+  margin-top: 20pt;
   font-weight: 500;
   font-family: "Calibri", "Arial", sans-serif;
 }
