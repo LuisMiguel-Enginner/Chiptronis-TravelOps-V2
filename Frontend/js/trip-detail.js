@@ -116,84 +116,80 @@ function keepColor(c) {
 
 function applyWordInlineStyles(rootEl) {
   if (!rootEl) return;
-  const all = rootEl.querySelectorAll("*");
-  for (const el of all) {
+
+  const bgEls = rootEl.querySelectorAll(".card, .card--highlight, .card__priority-ribbon, .badge, .badge--ok, .badge--pending, .task-card__status-badge, .task-card__status-badge--done, .task-card__status-badge--pending, .long-field__value, .long-field--pending .long-field__value, .task-card__summary p, .task-card__pending p, .responsor-tag, .user-schedule-block, .report-footer, .report-footer td, .empty, .table th, .card__subtitle--accent, .signatures, .signatures__table");
+  for (const el of bgEls) {
     try {
       const cs = window.getComputedStyle(el);
       const tag = (el.tagName || "").toLowerCase();
       let inline = el.getAttribute("style") || "";
 
       const hasBg = cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent";
-      if (hasBg) inline += `background-color:${cs.backgroundColor};background:${cs.backgroundColor};mso-highlight:${keepColor(cs.backgroundColor)};`;
-
-      if (cs.color && cs.color !== "rgb(17, 24, 39)" && cs.color !== "#111827") {
-        inline += `color:${cs.color};`;
-      } else {
-        inline += `color:#111827;`;
+      if (hasBg) {
+        const c = keepColor(cs.backgroundColor);
+        inline += `background-color:${c};background:${c};mso-highlight:${c};`;
       }
 
-      if (tag !== "body" && tag !== "html" && tag !== "table" && tag !== "tr") {
-        if (cs.marginTop) inline += `margin-top:${pxToPt(cs.marginTop)};`;
-        if (cs.marginBottom) inline += `margin-bottom:${pxToPt(cs.marginBottom)};`;
-        if (cs.marginLeft) inline += `margin-left:${pxToPt(cs.marginLeft)};`;
-        if (cs.marginRight) inline += `margin-right:${pxToPt(cs.marginRight)};`;
+      if (cs.color) inline += `color:${keepColor(cs.color)};`;
+
+      if (cs.paddingTop || cs.paddingRight || cs.paddingBottom || cs.paddingLeft) {
+        inline += `padding:${pxToPt(cs.paddingTop||"0")} ${pxToPt(cs.paddingRight||"0")} ${pxToPt(cs.paddingBottom||"0")} ${pxToPt(cs.paddingLeft||"0")};`;
       }
-      if (cs.paddingTop) inline += `padding-top:${pxToPt(cs.paddingTop)};`;
-      if (cs.paddingBottom) inline += `padding-bottom:${pxToPt(cs.paddingBottom)};`;
-      if (cs.paddingLeft) inline += `padding-left:${pxToPt(cs.paddingLeft)};`;
-      if (cs.paddingRight) inline += `padding-right:${pxToPt(cs.paddingRight)};`;
-      inline += `mso-padding-alt:${pxToPt(cs.paddingTop||"0")} ${pxToPt(cs.paddingRight||"0")} ${pxToPt(cs.paddingBottom||"0")} ${pxToPt(cs.paddingLeft||"0")};`;
 
       const hasBorder = (s) => s && s !== "0px none rgb(0, 0, 0)" && s !== "medium none currentColor" && !s.includes("none");
-      if (hasBorder(cs.borderTopStyle) || hasBorder(cs.borderTop)) {
-        const w = pxToPt(cs.borderTopWidth);
-        const color = keepColor(cs.borderTopColor);
-        const style = (cs.borderTopStyle || "solid").toLowerCase();
-        inline += `border-top:${w} ${style} ${color};mso-border-top-alt:${style} ${color} ${w};`;
-      }
-      if (hasBorder(cs.borderBottomStyle) || hasBorder(cs.borderBottom)) {
-        const w = pxToPt(cs.borderBottomWidth);
-        const color = keepColor(cs.borderBottomColor);
-        const style = (cs.borderBottomStyle || "solid").toLowerCase();
-        inline += `border-bottom:${w} ${style} ${color};mso-border-bottom-alt:${style} ${color} ${w};`;
-      }
-      if (hasBorder(cs.borderLeftStyle) || hasBorder(cs.borderLeft)) {
-        const w = pxToPt(cs.borderLeftWidth);
-        const color = keepColor(cs.borderLeftColor);
-        const style = (cs.borderLeftStyle || "solid").toLowerCase();
-        inline += `border-left:${w} ${style} ${color};mso-border-left-alt:${style} ${color} ${w};`;
-      }
-      if (hasBorder(cs.borderRightStyle) || hasBorder(cs.borderRight)) {
-        const w = pxToPt(cs.borderRightWidth);
-        const color = keepColor(cs.borderRightColor);
-        const style = (cs.borderRightStyle || "solid").toLowerCase();
-        inline += `border-right:${w} ${style} ${color};mso-border-right-alt:${style} ${color} ${w};`;
-      }
-
-      if (tag === "table") {
-        inline += `border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;table-layout:auto;`;
-      }
-      if (tag === "th" || tag === "td") {
-        inline += `vertical-align:${cs.verticalAlign||"top"};`;
-      }
-      if (tag === "img") {
-        inline += `display:block;vertical-align:middle;`;
-      }
-      if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4" || tag === "p" || tag === "div" || tag === "span" || tag === "td" || tag === "th" || tag === "li") {
-        if (cs.fontFamily) inline += `font-family:${cs.fontFamily};`;
-        if (cs.fontSize) inline += `font-size:${pxToPt(cs.fontSize)};mso-ansi-font-size:${pxToPt(cs.fontSize)};`;
-        if (cs.fontWeight) inline += `font-weight:${cs.fontWeight};`;
-        if (cs.textAlign && tag !== "span") inline += `text-align:${cs.textAlign};`;
-        if (cs.letterSpacing && cs.letterSpacing !== "normal") inline += `letter-spacing:${cs.letterSpacing};`;
-        if (cs.lineHeight && !Number.isNaN(parseFloat(cs.lineHeight))) {
-          const lh = parseFloat(cs.lineHeight);
-          if (lh > 0) inline += `line-height:${Math.round(lh*100)/100};mso-line-height-rule:exactly;`;
+      ["Top","Bottom","Left","Right"].forEach((side) => {
+        const lc = side.toLowerCase();
+        if (hasBorder(cs[`border${side}Style`]) || hasBorder(cs[`border${side}`])) {
+          const w = pxToPt(cs[`border${side}Width`]);
+          const color = keepColor(cs[`border${side}Color`]);
+          const style = (cs[`border${side}Style`] || "solid").toLowerCase();
+          inline += `border-${lc}:${w} ${style} ${color};mso-border-${lc}-alt:${style} ${color} ${w};`;
         }
-        if (cs.whiteSpace && cs.whiteSpace !== "normal") inline += `white-space:${cs.whiteSpace};`;
-        if (cs.textTransform && cs.textTransform !== "none") inline += `text-transform:${cs.textTransform};`;
-      }
+      });
+
+      if (tag === "table") inline += `border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;`;
+      if (tag === "th" || tag === "td") inline += `vertical-align:${cs.verticalAlign||"top"};`;
 
       if (inline) el.setAttribute("style", inline);
+    } catch (e) {}
+  }
+
+  const textEls = rootEl.querySelectorAll("h1, h2, h3, h4, .report-code, .card__title, .card__subtitle, .info-block__label, .info-block__value, .long-field__label, .task-card__worktype, .task-card__index, .task-card__date, .task-card__time, .task-card__row-label, .task-card__summary-label, .task-card__pending-label, .user-schedule-block__name, .user-schedule-block__meta, .day-schedule__date, .day-schedule__slots, .signature-name, .signature-role, .signature-date, .report-footer td, .badge, .card__priority-ribbon, .task-card__status-badge, .table th, .text-muted-sub, .text--pending");
+  for (const el of textEls) {
+    try {
+      const cs = window.getComputedStyle(el);
+      const tag = (el.tagName || "").toLowerCase();
+      let inline = el.getAttribute("style") || "";
+      if (cs.fontFamily) inline += `font-family:${cs.fontFamily};`;
+      if (cs.fontSize) inline += `font-size:${pxToPt(cs.fontSize)};mso-ansi-font-size:${pxToPt(cs.fontSize)};`;
+      if (cs.fontWeight) inline += `font-weight:${cs.fontWeight};`;
+      if (cs.color) inline += `color:${keepColor(cs.color)};`;
+      if (cs.textAlign && tag !== "span") inline += `text-align:${cs.textAlign};`;
+      if (cs.letterSpacing && cs.letterSpacing !== "normal") inline += `letter-spacing:${cs.letterSpacing};`;
+      if (cs.textTransform && cs.textTransform !== "none") inline += `text-transform:${cs.textTransform};`;
+      if (cs.whiteSpace && cs.whiteSpace !== "normal") inline += `white-space:${cs.whiteSpace};`;
+      if (inline) el.setAttribute("style", inline);
+    } catch (e) {}
+  }
+
+  const imgs = rootEl.querySelectorAll("img");
+  for (const img of imgs) {
+    try {
+      let s = img.getAttribute("style") || "";
+      s += "display:block;vertical-align:middle;";
+      img.setAttribute("style", s);
+    } catch (e) {}
+  }
+
+  const taskCards = rootEl.querySelectorAll(".task-card--done, .task-card--pending");
+  for (const el of taskCards) {
+    try {
+      const cs = window.getComputedStyle(el);
+      let inline = el.getAttribute("style") || "";
+      const leftW = pxToPt(cs.borderLeftWidth || "1px");
+      const leftC = keepColor(cs.borderLeftColor);
+      inline += `border-left:${leftW} solid ${leftC};mso-border-left-alt:solid ${leftC} ${leftW};`;
+      el.setAttribute("style", inline);
     } catch (e) {}
   }
 }
@@ -461,32 +457,23 @@ function showReportExportOptions(reportBlob) {
     <w:UseAsianBreakRules/>
     <w:DontGrowAutofit/>
     <w:UseFELayout/>
-    <w:NoTabHangInd/>
-    <w:NoLeading/>
   </w:Compatibility>
   <w:BrowserLevel>MicrosoftInternet Explorer4</w:BrowserLevel>
 </w:WordDocument>
-<w:ShapeDefaults>
-  <o:shapedefaults v:ext="edit" spidmax="1026"/>
-  <o:shapelayout v:ext="edit">
-    <o:idmap v:ext="edit" data="1"/>
-  </o:shapelayout>
-</w:ShapeDefaults>
 </xml>
 <![endif]-->
 <style type="text/css">
 ${reportStyles}
+body { background:#ffffff !important; }
+div.Section1, div.page { background:#ffffff !important; }
+td, th, div, span, p { orphans:3; widows:3; }
 </style>
 </head>
-<body lang="pt-BR" style="margin:0;padding:0;background:#ffffff !important;">
-<div class="Section1" style="background:#ffffff !important;">
-<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff !important; width:100%; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-  <tr>
-    <td valign="top" style="background:#ffffff !important; padding:0; margin:0;">
+<body lang="pt-BR" style="margin:0;padding:0;background:#ffffff;color:#111827;">
+<div class="Section1">
+<div class="page">
 ${pageHTML}
-    </td>
-  </tr>
-</table>
+</div>
 </div>
 </body>
 </html>`;
