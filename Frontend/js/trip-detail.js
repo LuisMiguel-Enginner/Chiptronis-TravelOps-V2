@@ -231,7 +231,7 @@ body { font-family: "Calibri", Arial, sans-serif; color: #111827; font-size: 11p
 .task-card { border: 1pt solid #d1d5db; border-radius: 8pt; padding: 11pt 12pt; margin-bottom: 10pt; }
 .task-card--done { border-left: 3.5pt solid #166534; }
 .task-card--pending { border-left: 3.5pt solid #d97706; }
-.signatures-wrap { page-break-before: always; padding-top: 70pt; margin-top: 50pt; background:#fff; page-break-inside: avoid; }
+.signatures-wrap { page-break-before: auto; padding-top: 0; margin-top: 200pt; background:#fff; page-break-inside: avoid; }
 .signatures-table { width: 100%; border-collapse: collapse; border:0; background:#fff; }
 .signature-block { width: 50%; text-align: center; vertical-align: top; padding: 0 24pt 50pt 24pt; background:#fff; border:0 !important; }
 .signature-block--last { padding: 0 10pt 50pt 40pt; }

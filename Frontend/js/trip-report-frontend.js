@@ -284,22 +284,6 @@ function renderDadosGerais(general, members) {
       <span class="info-block__value">${esc(general.sector || "—")}</span>
     </div>
 
-    ${members?.length ? `
-    <div class="participants-wrap">
-      <h3 class="card__subtitle">Quadro de participantes</h3>
-      <table class="table participants-table">
-        <colgroup><col style="width:42%"><col style="width:28%"><col style="width:30%"></colgroup>
-        <thead><tr><th>Nome</th><th>Setor</th><th>Cargo</th></tr></thead>
-        <tbody>
-          ${members.map((m) => `
-          <tr>
-            <td>${esc(m.fullName)}</td>
-            <td>${esc(m.sector || "—")}</td>
-            <td>${esc(m.positionTitle || "—")}</td>
-          </tr>`).join("")}
-        </tbody>
-      </table>
-    </div>` : ""}
   </section>`;
 }
 
@@ -464,7 +448,7 @@ function renderAtividades(title, tasks, tone) {
 function renderAssinaturas(general) {
   return `
   <section class="signatures-wrap">
-    <table class="signatures-table" role="presentation">
+    <table class="signatures-table" role="presentation" border="0" cellpadding="0" cellspacing="0">
       <tr>
         <td class="signature-block">
           <div class="signature-line-simple"></div>
@@ -486,14 +470,14 @@ function renderAssinaturas(general) {
 function renderFooter(generatedAt, code) {
   const logoMark = window.__REPORT_LOGOS__?.logoMark || "";
   return `
-  <table class="report-footer" role="presentation">
+  <table class="report-footer" role="presentation" border="0" cellpadding="0" cellspacing="0" style="background:#0f172a;background-color:#0f172a;mso-highlight:#0f172a;">
     <tr>
-      <td class="report-footer__brand-cell">
+      <td class="report-footer__brand-cell" style="background:#0f172a;background-color:#0f172a;mso-highlight:#0f172a;color:#e2e8f0;">
         <div class="report-footer__brand">
           <div class="report-footer__mark-wrap">${logoMark}</div>
         </div>
       </td>
-      <td class="report-footer__meta-cell">
+      <td class="report-footer__meta-cell" style="background:#0f172a;background-color:#0f172a;mso-highlight:#0f172a;color:#cbd5e1;">
         Relatório RG-RH-20 · Gerado em ${formatDateTime(generatedAt)}
       </td>
     </tr>
@@ -904,12 +888,12 @@ function reportCSS() {
     color: #92400e;
   }
   .signatures-wrap {
-    page-break-before: always;
-    break-before: page;
+    page-break-before: auto;
+    break-before: auto;
     page-break-inside: avoid;
     break-inside: avoid;
-    padding-top: 90px;
-    margin-top: 70px;
+    padding-top: 0;
+    margin-top: 260px;
   }
   .signatures-table {
     width: 100%;
@@ -1443,9 +1427,9 @@ body {
 
 /* ===== ASSINATURAS ===== */
 .signatures-wrap {
-  page-break-before: always;
-  padding-top: 70pt;
-  margin-top: 50pt;
+  page-break-before: auto;
+  padding-top: 0;
+  margin-top: 200pt;
   page-break-inside: avoid;
   background: #ffffff !important;
 }
