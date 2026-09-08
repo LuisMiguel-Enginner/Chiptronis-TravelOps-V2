@@ -102,6 +102,56 @@ function updateLocationMonitorStatus(trip, extra = {}) {
   }
 }
 
+function fallbackWordCSS() {
+  return `
+@page Section1 { size: 21cm 29.7cm; margin: 15mm 18mm 15mm 18mm; mso-page-orientation: portrait; }
+div.Section1 { page: Section1; }
+* { box-sizing: border-box; }
+body { font-family: "Calibri", Arial, sans-serif; color: #111827; font-size: 11pt; line-height: 1.55; margin: 0; padding: 0; background: #fff; }
+.page { width: 100%; max-width: 100%; padding: 0; margin: 0 auto; background: #fff; }
+.report-header { width: 100%; border-collapse: collapse; margin-bottom: 24pt; }
+.report-header td { vertical-align: middle; padding: 0; }
+.report-header__logo { width: 80pt; padding-right: 12pt; }
+.report-header__logo-wrap img { width: 56pt; height: 56pt; display: block; }
+.report-header__title-cell { text-align: center; }
+.report-header__title-cell h1 { margin: 0 0 8pt; font-size: 22pt; font-weight: 800; color: #0f172a; }
+.report-header__divider { height: 3pt; background: #2563eb; border-radius: 2pt; }
+.report-header__code-cell { width: 80pt; text-align: right; padding-left: 10pt; }
+.report-code { font-size: 11pt; font-weight: 700; color: #0f172a; margin-bottom: 6pt; }
+.badge { display: inline-block; padding: 3pt 9pt; border-radius: 999pt; font-size: 9pt; font-weight: 600; background: #e5e7eb; color: #374151; border: 1pt solid #d1d5db; }
+.badge--ok { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.badge--pending { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.card { border: 1pt solid #d1d5db; border-radius: 9pt; padding: 14pt 16pt; margin-bottom: 14pt; }
+.card__title { font-size: 14pt; margin: 0 0 12pt; color: #0f172a; font-weight: 700; padding-bottom: 10pt; border-bottom: 1pt solid #e5e7eb; }
+.card__subtitle { font-size: 11pt; margin: 15pt 0 8pt; color: #0f172a; font-weight: 700; }
+.info-block { margin: 0; padding: 7pt 0; border-bottom: 1pt solid #f1f5f9; }
+.info-block__label { font-size: 12pt; font-weight: 700; color: #0f172a; display: inline; }
+.info-block__value { font-size: 12pt; font-weight: 500; color: #1e293b; display: inline; margin-left: 4pt; }
+.two-col-table { width: 100%; border-collapse: collapse; }
+.two-col-table td { width: 50%; padding: 0; vertical-align: top; }
+.two-col-table td:last-child .info-block { padding-left: 16pt; border-left: 1pt solid #f1f5f9; }
+.long-field { margin-top: 11pt; }
+.long-field__label { font-size: 9pt; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 4pt; }
+.long-field__value { font-size: 11pt; margin: 0; padding: 8pt 10pt; border: 1pt solid #e5e7eb; border-radius: 5pt; white-space: pre-wrap; line-height: 1.6; }
+.table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
+.table th, .table td { text-align: left; padding: 8pt 10pt; border-bottom: 1pt solid #e5e7eb; font-size: 10pt; }
+.table th { color: #6b7280; font-weight: 600; font-size: 9pt; text-transform: uppercase; background: #f8fafc; }
+.task-card { border: 1pt solid #d1d5db; border-radius: 8pt; padding: 11pt 12pt; margin-bottom: 10pt; }
+.task-card--done { border-left: 3.5pt solid #166534; }
+.task-card--pending { border-left: 3.5pt solid #d97706; }
+.signatures { page-break-before: always; padding-top: 35pt; }
+.signatures__table { width: 100%; border-collapse: collapse; }
+.signature-cell { width: 50%; text-align: center; vertical-align: bottom; padding: 0 20pt; }
+.signature-space { height: 60pt; }
+.signature-line { border-top: 1pt solid #0f172a; width: 100%; margin: 0 auto; }
+.signature-name { margin-top: 10pt; font-weight: 700; font-size: 11.5pt; color: #0f172a; }
+.signature-role { font-size: 10.5pt; font-weight: 600; color: #0f172a; margin-top: 3pt; }
+.report-footer { width: 100%; border-collapse: collapse; margin-top: 28pt; background: #0f172a; border-radius: 8pt 8pt 0 0; }
+.report-footer td { padding: 12pt 16pt; font-size: 9pt; background: #0f172a; color: #e2e8f0; }
+.report-footer__mark-wrap img { width: 29pt; height: 29pt; display: block; }
+`;
+}
+
 function showReportExportOptions(reportBlob) {
   const existing = document.getElementById("report-export-modal");
   existing?.remove();
@@ -157,10 +207,6 @@ function showReportExportOptions(reportBlob) {
   });
 
   modal.querySelector('[data-export="word"]').addEventListener("click", () => {
-    if (typeof window.html2canvas !== "function") {
-      showAlert(alertEl, "O exportador Word ainda está carregando. Tente novamente.");
-      return;
-    }
 
     (async () => {
       try {
@@ -245,27 +291,61 @@ function showReportExportOptions(reportBlob) {
         }
         await new Promise((resolve) => setTimeout(resolve, 1100));
 
-        const finalHeight = Math.max(1123, pageEl.scrollHeight + 200);
-        stage.style.height = `${finalHeight}px`;
         stage.style.visibility = "visible";
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-        const canvas = await window.html2canvas(pageEl, {
-          scale: 2.5,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          letterRendering: true,
-          logging: false,
-          allowTaint: true,
-          foreignObjectRendering: false,
-          ignoreElements: (el) => el.tagName && el.tagName.toLowerCase() === "script",
-        });
+        const svgsToReplace = stage.querySelectorAll("svg");
+        for (const svg of svgsToReplace) {
+          try {
+            const w = parseFloat(svg.getAttribute("width") || svg.style.width || "64");
+            const h = parseFloat(svg.getAttribute("height") || svg.style.height || "64");
+            const clone = svg.cloneNode(true);
+            clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+            clone.setAttribute("width", w);
+            clone.setAttribute("height", h);
+            const svgString = new XMLSerializer().serializeToString(clone);
+            const svgEncoded = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+            const pngData = await new Promise((resolve, reject) => {
+              const img = new Image();
+              const timeout = setTimeout(() => reject(new Error("svg timeout")), 4000);
+              img.onload = () => {
+                clearTimeout(timeout);
+                try {
+                  const canvas = document.createElement("canvas");
+                  const scale = 2;
+                  canvas.width = w * scale;
+                  canvas.height = h * scale;
+                  const ctx = canvas.getContext("2d");
+                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  resolve(canvas.toDataURL("image/png"));
+                } catch (e) { reject(e); }
+              };
+              img.onerror = () => { clearTimeout(timeout); reject(new Error("svg render")); };
+              img.crossOrigin = "anonymous";
+              img.src = svgEncoded;
+            });
+            const imgEl = document.createElement("img");
+            imgEl.src = pngData;
+            imgEl.width = Math.round(w);
+            imgEl.height = Math.round(h);
+            imgEl.style.width = `${w}px`;
+            imgEl.style.height = `${h}px`;
+            imgEl.style.display = "block";
+            imgEl.style.verticalAlign = "middle";
+            svg.parentNode.replaceChild(imgEl, svg);
+          } catch (err) {
+            svg.remove();
+          }
+        }
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.96);
+        const pageHTML = pageEl.innerHTML;
+        const reportStyles = (window.TripReport?.wordCSS && window.TripReport.wordCSS()) || fallbackWordCSS();
 
-        const wordHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+        const wordHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
-<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>Relatório de Viagem — TRIP-${tripId}</title>
 <!--[if gte mso 9]>
 <xml>
@@ -273,35 +353,34 @@ function showReportExportOptions(reportBlob) {
   <w:View>Print</w:View>
   <w:Zoom>100</w:Zoom>
   <w:DoNotOptimizeForBrowser/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>true</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+    <w:BreakWrappedTables/>
+    <w:SnapToGridInCell/>
+    <w:WrapTextWithPunct/>
+    <w:UseAsianBreakRules/>
+    <w:DontGrowAutofit/>
+    <w:UseFELayout/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternet Explorer4</w:BrowserLevel>
 </w:WordDocument>
+<w:ShapeDefaults>
+  <o:shapedefaults v:ext="edit" spidmax="1026"/>
+  <o:shapelayout v:ext="edit">
+    <o:idmap v:ext="edit" data="1"/>
+  </o:shapelayout>
+</w:ShapeDefaults>
 </xml>
 <![endif]-->
-<style>
-@page {
-  size: A4 portrait;
-  margin: 15mm 18mm 15mm 18mm;
-  mso-page-orientation: portrait;
-  mso-header-margin: 12.7mm;
-  mso-footer-margin: 12.7mm;
-}
-div.Section1 { page: Section1; }
-body {
-  margin: 0;
-  padding: 0;
-  background: #ffffff;
-  font-family: "Calibri", "Arial", sans-serif;
-}
-.report-page-img {
-  width: 100%;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-}
+<style type="text/css">
+${reportStyles}
 </style>
 </head>
-<body>
+<body lang="pt-BR">
 <div class="Section1">
-  <img class="report-page-img" src="${imgData}" alt="Relatório de Viagem" />
+${pageHTML}
 </div>
 </body>
 </html>`;
