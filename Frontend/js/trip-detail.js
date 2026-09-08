@@ -163,18 +163,20 @@ function showReportExportOptions(reportBlob) {
     frame.onload = async () => {
       try {
         const reportDocument = frame.contentDocument;
-        const reportBody = reportDocument?.body;
-        if (!reportBody || !reportBody.innerHTML.trim()) {
+        const reportPage = reportDocument?.querySelector(".page");
+        if (!reportPage || !reportPage.innerHTML.trim()) {
           throw new Error("O conteúdo do relatório não foi renderizado.");
         }
+        frame.style.height = `${Math.max(1123, reportPage.scrollHeight + 20)}px`;
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         await window.html2pdf().set({
-          margin: [10, 10, 10, 10],
+          margin: 0,
           filename: `relatorio-viagem-${tripId}.pdf`,
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
           pagebreak: { mode: ["css", "legacy"] },
-        }).from(reportBody).save();
+        }).from(reportPage).save();
         close();
       } catch (error) {
         showAlert(alertEl, error.message || "Não foi possível exportar o PDF.");
