@@ -383,6 +383,77 @@ html[data-theme="dark"] .auth-page::after {
   border-color: var(--border-subtle);
 }
 
+.task-schedule-box,
+.task-extra-responsibles,
+.task-schedule-conflict {
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-xs);
+}
+#task-time-availability {
+  width: 100%;
+  clear: both;
+}
+.task-schedule-box {
+  color: var(--text-2);
+  background: var(--surface-alt);
+  border: 1px solid var(--border-subtle);
+}
+.task-schedule-person + .task-schedule-person {
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--border-subtle);
+}
+.task-schedule-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+.task-schedule-row > span:first-child {
+  margin-right: 0.2rem;
+  font-weight: 700;
+}
+.task-schedule-chip {
+  display: inline-flex;
+  padding: 0.16rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.task-schedule-chip.is-free {
+  color: var(--success-600);
+  background: var(--success-bg);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.task-schedule-chip.is-occupied {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  text-decoration: line-through;
+}
+.task-schedule-empty {
+  color: var(--text-2);
+  font-size: 0.72rem;
+}
+.task-extra-responsibles {
+  color: var(--text-2);
+  background: var(--surface-alt);
+  border: 1px solid var(--border-subtle);
+}
+.task-schedule-conflict {
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+.task-schedule-conflict .btn {
+  margin-left: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+}
+
 .demanda-group-card {
   overflow: hidden;
   border: 1px solid var(--border);
@@ -450,11 +521,45 @@ html[data-theme="dark"] .auth-page::after {
   text-align: center;
 }
 .demanda-vehicle-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: nowrap;
   justify-content: center !important;
 }
+.demanda-vehicle-data-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-align: left;
+  scrollbar-width: thin;
+}
+.demanda-vehicle-data-line > span {
+  flex: 0 0 auto;
+  color: var(--text-2);
+  font-size: 0.78rem;
+}
+.demanda-vehicle-data-line > span:not(:last-child)::after {
+  content: "•";
+  margin-left: 0.45rem;
+  color: #111827;
+  font-weight: 900;
+}
+.demanda-vehicle-card.demanda-vehicle-card-flat > div.demanda-vehicle-data-line {
+  justify-content: flex-start !important;
+  gap: 0.2rem !important;
+}
+.demanda-vehicle-data-line strong {
+  color: var(--text);
+}
 .demanda-vehicle-header > div {
-  width: 100%;
-  text-align: center;
+  width: auto;
+  text-align: left;
 }
 .demanda-vehicle-header > div button {
   margin-top: 0.4rem;

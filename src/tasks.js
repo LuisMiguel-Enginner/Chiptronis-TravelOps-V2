@@ -102,6 +102,13 @@ function parseResponsibleIds(value) {
   return ids;
 }
 
+function getTaskResponsibleIds(task) {
+  return parseResponsibleIds([
+    task.responsible_id,
+    ...String(task.responsible_ids || "").split(","),
+  ]);
+}
+
 function parseCustomFields(formOrBody) {
   const fields = {};
   if (formOrBody instanceof FormData) {
@@ -155,6 +162,54 @@ async function getCustomFields(db, taskId) {
 function rangesOverlap(startA, endA, startB, endB) {
   return startA < endB && endA > startB;
 }
+
+taskRoutes.get("/schedule", async (c) => {
+  const date = String(c.req.query("date") || "").trim();
+  const userId = Number(c.get("userId") || 0);
+  const requestedIds = parseResponsibleIds(c.req.query("user_ids") || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return err("Informe uma data válida.");
+  if (!userId) return err("Usuário não identificado.", 401);
+  const scheduleUserIds = requestedIds.length ? requestedIds : [userId];
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, trip_id, work_type, task_date, start_time, end_time,
+            responsible_id, responsible_ids
+       FROM trip_tasks
+      WHERE task_date = ?
+      ORDER BY start_time ASC, id ASC`,
+  )
+    .bind(date)
+    .all();
+
+  const usersById = new Map();
+  const placeholders = scheduleUserIds.map(() => "?").join(",");
+  const { results: users } = await c.env.DB.prepare(
+    `SELECT id, full_name FROM users WHERE id IN (${placeholders})`,
+  )
+    .bind(...scheduleUserIds)
+    .all();
+  for (const user of users || []) usersById.set(user.id, user);
+
+  const schedules = {};
+  for (const id of scheduleUserIds) {
+    schedules[id] = {
+      user_id: id,
+      full_name: usersById.get(id)?.full_name || "Responsável",
+      tasks: (results || [])
+        .filter((task) => getTaskResponsibleIds(task).includes(id))
+        .map((task) => ({
+          id: task.id,
+          trip_id: task.trip_id,
+          work_type: task.work_type,
+          task_date: task.task_date,
+          start_time: task.start_time,
+          end_time: task.end_time,
+        })),
+    };
+  }
+
+  return json({ success: true, schedules });
+});
 
 taskRoutes.get("/work-types", async (c) => {
   const user = c.get("user");
@@ -323,6 +378,7 @@ taskRoutes.post("/:id/tasks", async (c) => {
   let eh_atividade_prioridade = false;
   let demanda_atividade_id = null;
   let demanda_veiculo_id = null;
+  let allow_conflict = false;
   const photoFiles = [];
 
   if (contentType.includes("multipart/form-data")) {
@@ -351,6 +407,7 @@ taskRoutes.post("/:id/tasks", async (c) => {
     const rawDvId = form.get("demanda_veiculo_id");
     demanda_atividade_id = rawDaId && Number(rawDaId) > 0 ? Number(rawDaId) : null;
     demanda_veiculo_id = rawDvId && Number(rawDvId) > 0 ? Number(rawDvId) : null;
+    allow_conflict = String(form.get("allow_conflict") || "") === "1";
   } else {
     let body;
     try {
@@ -382,6 +439,7 @@ taskRoutes.post("/:id/tasks", async (c) => {
     eh_atividade_prioridade = Boolean(body.eh_atividade_prioridade);
     demanda_atividade_id = body.demanda_atividade_id && Number(body.demanda_atividade_id) > 0 ? Number(body.demanda_atividade_id) : null;
     demanda_veiculo_id = body.demanda_veiculo_id && Number(body.demanda_veiculo_id) > 0 ? Number(body.demanda_veiculo_id) : null;
+    allow_conflict = Boolean(body.allow_conflict);
   }
 
   if (eh_atividade_prioridade && !demanda_atividade_id) {
@@ -464,11 +522,11 @@ taskRoutes.post("/:id/tasks", async (c) => {
       .filter(Boolean);
     return (
       rangesOverlap(startMinutes, endMinutes, existingStart, existingEnd) &&
-      existingIds.some((id) => uniqueIds.includes(id))
+      existingIds.includes(Number(userId))
     );
   });
 
-  if (hasConflict) {
+  if (hasConflict && !allow_conflict) {
     return err(
       "Já existe outra tarefa neste mesmo horário para este dia.",
       409,

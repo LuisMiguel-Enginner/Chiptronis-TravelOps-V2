@@ -26,6 +26,14 @@ import {
 
 let lastTaskDate = "";
 let selectedTripDate = "";
+const TASK_DAY_START = 0;
+const TASK_DAY_END = 24 * 60;
+let personalTaskSchedule = {
+  date: "",
+  schedules: {},
+  requestId: 0,
+  allowConflict: false,
+};
 
 function getTripDays(startDate, endDate) {
   const dates = [];
@@ -256,6 +264,10 @@ function fillTaskResponsibleOptions(t) {
     checkbox.name = "responsible_id";
     checkbox.value = memberId;
     checkbox.checked = currentValues.has(memberId);
+    checkbox.addEventListener("change", () => {
+      personalTaskSchedule.allowConflict = false;
+      refreshPersonalSchedule(t, document.getElementById("task_date")?.value || "");
+    });
 
     const text = document.createElement("span");
     const isCreator = memberId === String(t.user_id || "");
@@ -922,16 +934,18 @@ export function prepareTaskForm(
   }
 
   if (startInput && !startInput.dataset.listenerAttached) {
-    startInput.addEventListener("input", () =>
-      updateTaskAvailability(t, selectedTripDate),
-    );
+    startInput.addEventListener("input", () => {
+      personalTaskSchedule.allowConflict = false;
+      renderPersonalSchedule(t);
+    });
     startInput.dataset.listenerAttached = "1";
   }
 
   if (endInput && !endInput.dataset.listenerAttached) {
-    endInput.addEventListener("input", () =>
-      updateTaskAvailability(t, selectedTripDate),
-    );
+    endInput.addEventListener("input", () => {
+      personalTaskSchedule.allowConflict = false;
+      renderPersonalSchedule(t);
+    });
     endInput.dataset.listenerAttached = "1";
   }
 
@@ -949,10 +963,17 @@ export function prepareTaskForm(
       if (today >= t.start_date && today <= t.end_date) dateInput.value = today;
       else dateInput.value = t.start_date;
     }
+    if (!dateInput.dataset.listenerAttached) {
+      dateInput.addEventListener("change", () => {
+        refreshPersonalSchedule(t, dateInput.value);
+      });
+      dateInput.dataset.listenerAttached = "1";
+    }
   }
 
   updateTaskTypeFields();
   lastTaskDate = dateInput?.value || "";
+  refreshPersonalSchedule(t, dateInput?.value || "");
 }
 
 async function loadCustomFieldsForForm() {
@@ -1112,6 +1133,10 @@ function minutesFromTime(value) {
   return h * 60 + m;
 }
 
+function rangesOverlap(startA, endA, startB, endB) {
+  return startA < endB && endA > startB;
+}
+
 function formatTimeLabel(value) {
   if (!value) return "—";
   const [h, m] = String(value).split(":");
@@ -1122,6 +1147,168 @@ function formatMinutesLabel(totalMinutes) {
   const hour = Math.floor(totalMinutes / 60);
   const minute = totalMinutes % 60;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function getSelectedTaskResponsibleIds() {
+  return Array.from(
+    document.querySelectorAll('#responsible_id input[type="checkbox"]:checked'),
+  )
+    .map((input) => Number(input.value))
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function getExtraResponsibleNames(t) {
+  const currentUserId = Number(window.__currentUser?.id || 0);
+  const members = Array.isArray(t?.members) ? t.members : [];
+  return getSelectedTaskResponsibleIds()
+    .filter((id) => id !== currentUserId)
+    .map((id) => members.find((member) => Number(member.user_id || member.id) === id)?.full_name)
+    .filter(Boolean);
+}
+
+function getPersonalScheduleConflict(date, startTime, endTime) {
+  if (!date || date !== personalTaskSchedule.date) return null;
+  const start = minutesFromTime(startTime);
+  const end = minutesFromTime(endTime);
+  if (start == null || end == null || end <= start) return null;
+
+  for (const schedule of Object.values(personalTaskSchedule.schedules)) {
+    const conflict = schedule.tasks.find((task) => {
+      const occupiedStart = minutesFromTime(task.start_time);
+      const occupiedEnd = minutesFromTime(task.end_time);
+      return occupiedStart != null && occupiedEnd != null &&
+        rangesOverlap(start, end, occupiedStart, occupiedEnd);
+    });
+    if (conflict) return { ...conflict, responsible_name: schedule.full_name };
+  }
+  return null;
+}
+
+function getPersonalScheduleSlots(tasks) {
+  const occupied = tasks
+    .map((task) => ({
+      start: Math.max(TASK_DAY_START, minutesFromTime(task.start_time)),
+      end: Math.min(TASK_DAY_END, minutesFromTime(task.end_time)),
+    }))
+    .filter((slot) => slot.start < slot.end)
+    .sort((a, b) => a.start - b.start);
+
+  const merged = [];
+  for (const slot of occupied) {
+    const previous = merged[merged.length - 1];
+    if (previous && slot.start <= previous.end) previous.end = Math.max(previous.end, slot.end);
+    else merged.push({ ...slot });
+  }
+
+  const free = [];
+  let cursor = TASK_DAY_START;
+  for (const slot of merged) {
+    if (slot.start > cursor) free.push({ start: cursor, end: slot.start });
+    cursor = Math.max(cursor, slot.end);
+  }
+  if (cursor < TASK_DAY_END) free.push({ start: cursor, end: TASK_DAY_END });
+  return { occupied: merged, free };
+}
+
+function renderPersonalSchedule(t) {
+  const panel = document.getElementById("task-time-availability");
+  if (!panel) return;
+
+  const date = document.getElementById("task_date")?.value || "";
+  if (!date || personalTaskSchedule.date !== date) {
+    panel.innerHTML = "";
+    panel.classList.add("hidden-fields");
+    return;
+  }
+
+  if (personalTaskSchedule.loading) {
+    panel.innerHTML = '<div class="alert alert-info">Carregando seus horários...</div>';
+    panel.classList.remove("hidden-fields");
+    return;
+  }
+
+  const startTime = document.getElementById("start_time")?.value || "";
+  const endTime = document.getElementById("end_time")?.value || "";
+  const conflict = getPersonalScheduleConflict(date, startTime, endTime);
+  const extraNames = getExtraResponsibleNames(t);
+  const selectedStart = startTime && endTime ? `${formatTimeLabel(startTime)}–${formatTimeLabel(endTime)}` : "esse horário";
+
+  const chips = (slots, className) => slots.length
+    ? slots.map((slot) => `<span class="task-schedule-chip ${className}">${formatMinutesLabel(slot.start)}–${formatMinutesLabel(slot.end)}</span>`).join("")
+    : '<span class="task-schedule-empty">Nenhum</span>';
+  const scheduleSections = Object.values(personalTaskSchedule.schedules).map((schedule) => {
+    const { occupied, free } = getPersonalScheduleSlots(schedule.tasks || []);
+    const occupiedLabels = (schedule.tasks || [])
+      .map((task) => `<span class="task-schedule-chip is-occupied" title="${escapeHtml(task.work_type || "Tarefa")}">${formatTimeLabel(task.start_time)}–${formatTimeLabel(task.end_time)}</span>`)
+      .join("");
+    return `<div class="task-schedule-person">
+      <strong>${escapeHtml(schedule.full_name || "Responsável")}</strong>
+      <div class="task-schedule-row"><span>Livre:</span>${chips(free, "is-free")}</div>
+      ${occupiedLabels ? `<div class="task-schedule-row"><span>Ocupado:</span>${occupiedLabels}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  panel.innerHTML = `
+    <div class="task-schedule-box">
+      <strong>Horários dos responsáveis hoje</strong>
+      ${scheduleSections || '<div class="task-schedule-empty">Selecione um responsável para consultar os horários.</div>'}
+    </div>
+    ${extraNames.length && startTime && endTime ? `<div class="task-extra-responsibles"><span aria-hidden="true">ⓘ</span> ${escapeHtml(selectedStart)} também será reservado para ${escapeHtml(extraNames.join(" e "))} nessa tarefa.</div>` : ""}
+    ${conflict ? `<div class="task-schedule-conflict" role="alert"><span aria-hidden="true">⚠</span> ${escapeHtml(formatTimeLabel(conflict.start_time))}–${escapeHtml(formatTimeLabel(conflict.end_time))} já está ocupado para ${escapeHtml(conflict.responsible_name || "um responsável selecionado")}. <button type="button" class="btn btn-secondary btn-sm" data-allow-task-conflict>Salvar mesmo assim</button></div>` : ""}
+  `;
+  panel.classList.remove("hidden-fields");
+  panel.querySelector("[data-allow-task-conflict]")?.addEventListener("click", () => {
+    personalTaskSchedule.allowConflict = true;
+    renderPersonalSchedule(t);
+  });
+}
+
+async function refreshPersonalSchedule(t, date) {
+  const panel = document.getElementById("task-time-availability");
+  if (!panel || !date) return;
+  const requestId = ++personalTaskSchedule.requestId;
+  personalTaskSchedule = { ...personalTaskSchedule, date, schedules: {}, loading: true, allowConflict: false };
+  renderPersonalSchedule(t);
+  try {
+    const selectedIds = getSelectedTaskResponsibleIds();
+    const fallbackId = Number(window.__currentUser?.id || 0);
+    const result = await api.taskSchedule(date, selectedIds.length ? selectedIds : [fallbackId]);
+    if (requestId !== personalTaskSchedule.requestId) return;
+    personalTaskSchedule = { ...personalTaskSchedule, loading: false, schedules: result.schedules || {} };
+    renderPersonalSchedule(t);
+  } catch {
+    if (requestId !== personalTaskSchedule.requestId) return;
+    const currentUserId = Number(window.__currentUser?.id || 0);
+    const selectedIds = getSelectedTaskResponsibleIds();
+    const ids = selectedIds.length ? selectedIds : [currentUserId];
+    const schedules = {};
+    for (const id of ids) {
+      const member = (t.members || []).find((item) => Number(item.user_id || item.id) === id);
+      schedules[id] = {
+        user_id: id,
+        full_name: member?.full_name || (id === currentUserId ? window.__currentUser?.full_name : "Responsável"),
+        tasks: (t.tasks || []).filter((task) => {
+          const responsibleIds = Array.isArray(task.responsible_ids)
+            ? task.responsible_ids.map(Number)
+            : String(task.responsible_ids || task.responsible_id || "").split(",").map(Number);
+          return task.task_date === date && responsibleIds.includes(id);
+        }),
+      };
+    }
+    personalTaskSchedule = { ...personalTaskSchedule, loading: false, schedules };
+    renderPersonalSchedule(t);
+  }
+}
+
+export function hasConfirmedPersonalTaskConflict(payload) {
+  return Boolean(
+    getPersonalScheduleConflict(payload.task_date, payload.start_time, payload.end_time) &&
+    personalTaskSchedule.allowConflict,
+  );
+}
+
+export function hasPersonalTaskConflict(payload) {
+  return Boolean(getPersonalScheduleConflict(payload.task_date, payload.start_time, payload.end_time));
 }
 
 function getLunchWindowConfig() {
@@ -1314,6 +1501,7 @@ export function validateTaskTimeAvailability(
   startTime,
   endTime,
   responsibleIds = [],
+  allowConflict = false,
 ) {
   if (!selectedDate || !startTime || !endTime) return { ok: true, message: "" };
 
@@ -1325,20 +1513,6 @@ export function validateTaskTimeAvailability(
 
   if (startMinutes == null || endMinutes == null) {
     return { ok: true, message: "" };
-  }
-
-  const conflict = findConflict(
-    startMinutes,
-    endMinutes,
-    tasksForDate,
-    responsibleIds,
-  );
-  if (conflict) {
-    return {
-      ok: false,
-      message:
-        "Já tem uma tarefa nesse horário, coloque um dos horários disponíveis.",
-    };
   }
 
   return { ok: true, message: "" };

@@ -95,10 +95,13 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
                 return `
                   <div class="demanda-vehicle-card">
                     <div class="demanda-vehicle-header">
-                      <strong>${escapeHtml([dv.montadora, dv.modelo, dv.versao_modelo].filter(Boolean).join(' · ') || 'Veículo')}</strong>
-                      <span class="text-muted" style="font-size:0.78rem;">
-                        ${dv.placa ? `${escapeHtml(String(dv.placa).toUpperCase())}` : ''}${dv.ano ? ` · ${escapeHtml(dv.ano)}` : ''}
-                      </span>
+                      <div class="demanda-vehicle-data-line">
+                        <span>MONTADORA: <strong>${escapeHtml(dv.montadora || '—')}</strong></span>
+                        <span>MODELO: <strong>${escapeHtml(dv.modelo || '—')}</strong></span>
+                        <span>VERSÃO MODELO: <strong>${escapeHtml(dv.versao_modelo || '—')}</strong></span>
+                        <span>ANO/ANO: <strong>${escapeHtml(dv.ano ? `${dv.ano}/${dv.ano}` : '—')}</strong></span>
+                        <span>PLACA: <strong>${escapeHtml(dv.placa ? String(dv.placa).toUpperCase() : '—')}</strong></span>
+                      </div>
                       <button type="button" class="btn btn-secondary btn-sm btn-editar-veiculo" data-veiculo-id="${dv.id}">Editar veículo</button>
                     </div>
                     ${atividades}
@@ -437,18 +440,14 @@ export function renderQuadroDemandasIntegrante(container, demandas, tripId, { us
           </tr>`;
       }).join('');
 
-      const cabVeic = [dv.montadora, dv.modelo, dv.versao_modelo].filter(Boolean).join(' · ') || '—';
-
       return `
         <div class="demanda-vehicle-card demanda-vehicle-card-flat" style="border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--panel-bg);">
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:start;justify-content:space-between;margin-bottom:10px;">
-            <div>
-              <strong>${escapeHtml(cabVeic)}</strong>
-              <div class="text-muted" style="font-size:0.85rem;">
-                ${dv.placa ? `Placa: <strong>${escapeHtml(dv.placa.toUpperCase())}</strong>` : ''}
-                ${dv.ano ? ` · Ano: <strong>${escapeHtml(dv.ano)}</strong>` : ''}
-              </div>
-            </div>
+          <div class="demanda-vehicle-data-line" style="margin-bottom:10px;">
+            <span>MONTADORA: <strong>${escapeHtml(dv.montadora || '—')}</strong></span>
+            <span>MODELO: <strong>${escapeHtml(dv.modelo || '—')}</strong></span>
+            <span>VERSÃO MODELO: <strong>${escapeHtml(dv.versao_modelo || '—')}</strong></span>
+            <span>ANO/ANO: <strong>${escapeHtml(dv.ano ? `${dv.ano}/${dv.ano}` : '—')}</strong></span>
+            <span>PLACA: <strong>${escapeHtml(dv.placa ? String(dv.placa).toUpperCase() : '—')}</strong></span>
           </div>
           ${(dv.atividades || []).length ? `
           <table class="data" style="width:100%;margin:0;">

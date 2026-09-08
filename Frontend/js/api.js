@@ -148,6 +148,11 @@ export const api = {
     request(`/trips/${id}`, { method: "PUT", json: body }),
   deleteTrip: (id) => request(`/trips/${id}`, { method: "DELETE" }),
   completeTrip: (id) => request(`/trips/${id}/complete`, { method: "POST" }),
+  taskSchedule: (date, userIds = []) => {
+    const params = new URLSearchParams({ date: date || "" });
+    if (userIds.length) params.set("user_ids", userIds.join(","));
+    return request(`/trips/schedule?${params.toString()}`);
+  },
   tripActivity: (id) => request(`/activity/trips/${id}`),
   activities: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
@@ -281,6 +286,7 @@ export const api = {
     fd.append("modelo", payload.modelo || "");
     fd.append("submodelo", payload.submodelo || "");
     fd.append("project_id", payload.project_id || "");
+    if (payload.allow_conflict) fd.append("allow_conflict", "1");
     if (payload.eh_atividade_prioridade) {
       fd.append("eh_atividade_prioridade", "1");
     }

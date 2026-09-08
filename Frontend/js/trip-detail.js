@@ -7,6 +7,8 @@ import {
   renderTrip,
   taskFormPayload,
   validateTaskTimeAvailability,
+  hasPersonalTaskConflict,
+  hasConfirmedPersonalTaskConflict,
   setupPanelToggles,
 } from "./trip-render.js?v=2";
 import { confirmDialog } from "./ui.js";
@@ -217,12 +219,15 @@ document.getElementById("task-form")?.addEventListener("submit", async (e) => {
   try {
     const trip = window.__currentTrip;
     const payload = taskFormPayload();
+    const personalConflict = hasPersonalTaskConflict(payload);
+    const confirmedPersonalConflict = hasConfirmedPersonalTaskConflict(payload);
     const validation = validateTaskTimeAvailability(
       trip,
       payload.task_date,
       payload.start_time,
       payload.end_time,
       payload.responsible_ids,
+      confirmedPersonalConflict,
     );
 
     if (!validation.ok) {
@@ -230,6 +235,19 @@ document.getElementById("task-form")?.addEventListener("submit", async (e) => {
       alertEl?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
+
+    if (
+      personalConflict && !confirmedPersonalConflict
+    ) {
+      showAlert(
+        alertEl,
+        "Há sobreposição com uma tarefa sua. Confira o aviso abaixo e clique em 'Salvar mesmo assim' para prosseguir.",
+        "warning",
+      );
+      alertEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    payload.allow_conflict = confirmedPersonalConflict;
 
     const res = await api.addTask(tripId, payload);
     const optimisticTrip = applyDemandCompletionOptimisticUpdate(window.__currentTrip, payload);
