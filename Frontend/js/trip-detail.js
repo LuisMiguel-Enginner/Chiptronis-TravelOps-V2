@@ -102,6 +102,102 @@ function updateLocationMonitorStatus(trip, extra = {}) {
   }
 }
 
+function pxToPt(v) {
+  const n = parseFloat(v);
+  if (Number.isNaN(n)) return v;
+  return (n * 0.75).toFixed(2).replace(/\.?0+$/, "") + "pt";
+}
+
+function keepColor(c) {
+  if (!c) return "";
+  if (c.startsWith("#") || c.startsWith("rgb")) return c;
+  return String(c);
+}
+
+function applyWordInlineStyles(rootEl) {
+  if (!rootEl) return;
+  const all = rootEl.querySelectorAll("*");
+  for (const el of all) {
+    try {
+      const cs = window.getComputedStyle(el);
+      const tag = (el.tagName || "").toLowerCase();
+      let inline = el.getAttribute("style") || "";
+
+      const hasBg = cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent";
+      if (hasBg) inline += `background-color:${cs.backgroundColor};background:${cs.backgroundColor};mso-highlight:${keepColor(cs.backgroundColor)};`;
+
+      if (cs.color && cs.color !== "rgb(17, 24, 39)" && cs.color !== "#111827") {
+        inline += `color:${cs.color};`;
+      } else {
+        inline += `color:#111827;`;
+      }
+
+      if (tag !== "body" && tag !== "html" && tag !== "table" && tag !== "tr") {
+        if (cs.marginTop) inline += `margin-top:${pxToPt(cs.marginTop)};`;
+        if (cs.marginBottom) inline += `margin-bottom:${pxToPt(cs.marginBottom)};`;
+        if (cs.marginLeft) inline += `margin-left:${pxToPt(cs.marginLeft)};`;
+        if (cs.marginRight) inline += `margin-right:${pxToPt(cs.marginRight)};`;
+      }
+      if (cs.paddingTop) inline += `padding-top:${pxToPt(cs.paddingTop)};`;
+      if (cs.paddingBottom) inline += `padding-bottom:${pxToPt(cs.paddingBottom)};`;
+      if (cs.paddingLeft) inline += `padding-left:${pxToPt(cs.paddingLeft)};`;
+      if (cs.paddingRight) inline += `padding-right:${pxToPt(cs.paddingRight)};`;
+      inline += `mso-padding-alt:${pxToPt(cs.paddingTop||"0")} ${pxToPt(cs.paddingRight||"0")} ${pxToPt(cs.paddingBottom||"0")} ${pxToPt(cs.paddingLeft||"0")};`;
+
+      const hasBorder = (s) => s && s !== "0px none rgb(0, 0, 0)" && s !== "medium none currentColor" && !s.includes("none");
+      if (hasBorder(cs.borderTopStyle) || hasBorder(cs.borderTop)) {
+        const w = pxToPt(cs.borderTopWidth);
+        const color = keepColor(cs.borderTopColor);
+        const style = (cs.borderTopStyle || "solid").toLowerCase();
+        inline += `border-top:${w} ${style} ${color};mso-border-top-alt:${style} ${color} ${w};`;
+      }
+      if (hasBorder(cs.borderBottomStyle) || hasBorder(cs.borderBottom)) {
+        const w = pxToPt(cs.borderBottomWidth);
+        const color = keepColor(cs.borderBottomColor);
+        const style = (cs.borderBottomStyle || "solid").toLowerCase();
+        inline += `border-bottom:${w} ${style} ${color};mso-border-bottom-alt:${style} ${color} ${w};`;
+      }
+      if (hasBorder(cs.borderLeftStyle) || hasBorder(cs.borderLeft)) {
+        const w = pxToPt(cs.borderLeftWidth);
+        const color = keepColor(cs.borderLeftColor);
+        const style = (cs.borderLeftStyle || "solid").toLowerCase();
+        inline += `border-left:${w} ${style} ${color};mso-border-left-alt:${style} ${color} ${w};`;
+      }
+      if (hasBorder(cs.borderRightStyle) || hasBorder(cs.borderRight)) {
+        const w = pxToPt(cs.borderRightWidth);
+        const color = keepColor(cs.borderRightColor);
+        const style = (cs.borderRightStyle || "solid").toLowerCase();
+        inline += `border-right:${w} ${style} ${color};mso-border-right-alt:${style} ${color} ${w};`;
+      }
+
+      if (tag === "table") {
+        inline += `border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;table-layout:auto;`;
+      }
+      if (tag === "th" || tag === "td") {
+        inline += `vertical-align:${cs.verticalAlign||"top"};`;
+      }
+      if (tag === "img") {
+        inline += `display:block;vertical-align:middle;`;
+      }
+      if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4" || tag === "p" || tag === "div" || tag === "span" || tag === "td" || tag === "th" || tag === "li") {
+        if (cs.fontFamily) inline += `font-family:${cs.fontFamily};`;
+        if (cs.fontSize) inline += `font-size:${pxToPt(cs.fontSize)};mso-ansi-font-size:${pxToPt(cs.fontSize)};`;
+        if (cs.fontWeight) inline += `font-weight:${cs.fontWeight};`;
+        if (cs.textAlign && tag !== "span") inline += `text-align:${cs.textAlign};`;
+        if (cs.letterSpacing && cs.letterSpacing !== "normal") inline += `letter-spacing:${cs.letterSpacing};`;
+        if (cs.lineHeight && !Number.isNaN(parseFloat(cs.lineHeight))) {
+          const lh = parseFloat(cs.lineHeight);
+          if (lh > 0) inline += `line-height:${Math.round(lh*100)/100};mso-line-height-rule:exactly;`;
+        }
+        if (cs.whiteSpace && cs.whiteSpace !== "normal") inline += `white-space:${cs.whiteSpace};`;
+        if (cs.textTransform && cs.textTransform !== "none") inline += `text-transform:${cs.textTransform};`;
+      }
+
+      if (inline) el.setAttribute("style", inline);
+    } catch (e) {}
+  }
+}
+
 function fallbackWordCSS() {
   return `
 @page Section1 { size: 21cm 29.7cm; margin: 15mm 18mm 15mm 18mm; mso-page-orientation: portrait; }
@@ -340,12 +436,14 @@ function showReportExportOptions(reportBlob) {
           }
         }
 
+        applyWordInlineStyles(pageEl);
         const pageHTML = pageEl.innerHTML;
         const reportStyles = (window.TripReport?.wordCSS && window.TripReport.wordCSS()) || fallbackWordCSS();
 
         const wordHTML = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="Content-Style-Type" content="text/css">
 <title>Relatório de Viagem — TRIP-${tripId}</title>
 <!--[if gte mso 9]>
 <xml>
@@ -363,6 +461,8 @@ function showReportExportOptions(reportBlob) {
     <w:UseAsianBreakRules/>
     <w:DontGrowAutofit/>
     <w:UseFELayout/>
+    <w:NoTabHangInd/>
+    <w:NoLeading/>
   </w:Compatibility>
   <w:BrowserLevel>MicrosoftInternet Explorer4</w:BrowserLevel>
 </w:WordDocument>
@@ -378,9 +478,15 @@ function showReportExportOptions(reportBlob) {
 ${reportStyles}
 </style>
 </head>
-<body lang="pt-BR">
-<div class="Section1">
+<body lang="pt-BR" style="margin:0;padding:0;background:#ffffff !important;">
+<div class="Section1" style="background:#ffffff !important;">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff !important; width:100%; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+  <tr>
+    <td valign="top" style="background:#ffffff !important; padding:0; margin:0;">
 ${pageHTML}
+    </td>
+  </tr>
+</table>
 </div>
 </body>
 </html>`;
