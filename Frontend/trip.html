@@ -24,6 +24,7 @@
         <div class="form-actions mb-0">
           <span id="trip-status" class="hidden-title-elem"></span>
           <button type="button" class="btn btn-secondary" id="btn-trip-history" aria-label="Ver histórico da viagem" title="Ver histórico da viagem">?</button>
+          <button type="button" class="btn btn-secondary" id="btn-trip-report" disabled title="O relatório só pode ser gerado após a conclusão da viagem">Gerar relatório</button>
           <button type="button" class="btn btn-secondary" id="btn-edit-trip">Editar viagem</button>
           <button type="button" class="btn btn-danger" id="btn-delete-trip">Excluir viagem</button>
           <a href="index.html" class="btn btn-secondary">Voltar</a>
@@ -243,6 +244,7 @@
     </main>
   </div>
   <script src="js/config.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script type="module" src="js/trip-detail.js?v=3"></script>
 </body>
 </html>

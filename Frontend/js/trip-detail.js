@@ -102,6 +102,91 @@ function updateLocationMonitorStatus(trip, extra = {}) {
   }
 }
 
+function showReportExportOptions(reportBlob) {
+  const existing = document.getElementById("report-export-modal");
+  existing?.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "report-export-modal";
+  modal.className = "modal-overlay";
+  modal.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="report-export-title">
+      <div class="modal-head">
+        <div class="modal-icon info">↓</div>
+        <div>
+          <h3 id="report-export-title" class="modal-title">Exportar relatório</h3>
+          <p class="modal-text">Escolha o formato para salvar o relatório da viagem.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-export="word">Exportar Word</button>
+        <button type="button" class="btn btn-primary" data-export="pdf">Exportar PDF</button>
+        <button type="button" class="btn btn-secondary" data-export="cancel">Cancelar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const close = () => modal.remove();
+  modal.querySelector('[data-export="cancel"]').addEventListener("click", close);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) close();
+  });
+
+  modal.querySelector('[data-export="word"]').addEventListener("click", () => {
+    const wordBlob = new Blob([reportBlob], { type: "application/msword" });
+    const url = URL.createObjectURL(wordBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `relatorio-viagem-${tripId}.doc`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    close();
+  });
+
+  modal.querySelector('[data-export="pdf"]').addEventListener("click", () => {
+    if (typeof window.html2pdf !== "function") {
+      showAlert(alertEl, "O exportador PDF ainda está carregando. Tente novamente.");
+      return;
+    }
+
+    const reportUrl = URL.createObjectURL(reportBlob);
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.position = "fixed";
+    frame.style.left = "-100000px";
+    frame.style.top = "0";
+    frame.style.width = "794px";
+    frame.style.height = "1123px";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+
+    frame.onload = async () => {
+      try {
+        const reportDocument = frame.contentDocument;
+        const reportBody = reportDocument?.body;
+        if (!reportBody || !reportBody.innerHTML.trim()) {
+          throw new Error("O conteúdo do relatório não foi renderizado.");
+        }
+        await window.html2pdf().set({
+          margin: [10, 10, 10, 10],
+          filename: `relatorio-viagem-${tripId}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"] },
+        }).from(reportBody).save();
+        close();
+      } catch (error) {
+        showAlert(alertEl, error.message || "Não foi possível exportar o PDF.");
+      } finally {
+        URL.revokeObjectURL(reportUrl);
+        frame.remove();
+      }
+    };
+    frame.src = reportUrl;
+  });
+}
+
 function setupLocationMonitor(trip) {
   if (!trip) return;
   if (trip.status !== 'in_progress') {
@@ -201,12 +286,30 @@ async function init() {
       editBtn.textContent =
         trip.status === "completed" ? "Editar checklist" : "Editar viagem";
     }
+    const reportBtn = document.getElementById("btn-trip-report");
+    if (reportBtn) {
+      const canReport = trip.status === "completed";
+      reportBtn.disabled = !canReport;
+      reportBtn.title = canReport
+        ? "Abrir relatório da viagem"
+        : "O relatório só pode ser gerado após a conclusão da viagem";
+    }
   } catch (err) {
     showAlert(alertEl, err.message);
   }
 
   document.getElementById('btn-trip-history')?.addEventListener('click', () => {
     window.location.href = `trip-history.html?id=${tripId}`;
+  });
+  document.getElementById('btn-trip-report')?.addEventListener('click', () => {
+    if (window.__currentTrip?.status !== "completed") return;
+    api.fetchTripReport(tripId)
+      .then((blob) => {
+        showReportExportOptions(blob);
+      })
+      .catch((error) => {
+        showAlert(alertEl, error.message || "Não foi possível gerar o relatório.");
+      });
   });
 }
 

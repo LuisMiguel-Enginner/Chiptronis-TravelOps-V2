@@ -12,6 +12,8 @@ import { checklistRoutes } from "./checklist.js";
 import { taskRoutes } from "./tasks.js";
 import { getAccessibleTrip } from "./tasks.js";
 import { logActivity } from "./activity.js";
+import { buildTripReportModel } from "./trip_report.js";
+import { renderTripReportHTML } from "./trip_report_template.js";
 
 export const trips = new Hono();
 trips.use("*", requireUser);
@@ -331,6 +333,41 @@ trips.get("/users-for-members", async (c) => {
 });
 
 trips.route("/", taskRoutes);
+
+trips.get("/:id/report", async (c) => {
+  const id = Number(c.req.param("id"));
+  const userId = c.get("userId");
+  const viewer = c.get("user");
+  const tripRow = await c.env.DB.prepare("SELECT * FROM trips WHERE id = ?")
+    .bind(id)
+    .first();
+  if (!tripRow) return err("Viagem não encontrada.", 404);
+  if (tripRow.status !== "completed") {
+    return err("O relatório só pode ser gerado após a conclusão da viagem.", 409);
+  }
+
+  if (tripRow.user_id !== userId) {
+    const owner = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?")
+      .bind(tripRow.user_id)
+      .first();
+    const memberRow = await c.env.DB.prepare(
+      "SELECT id FROM trip_members WHERE trip_id = ? AND user_id = ? LIMIT 1",
+    ).bind(id, userId).first();
+    const allowed =
+      isAdmin(viewer) ||
+      owner?.manager_id === userId ||
+      (getLedSector(viewer) && owner?.sector === getLedSector(viewer)) ||
+      !!memberRow;
+    if (!allowed) return err("Viagem não encontrada.", 404);
+  }
+
+  const trip = await fetchTripFull(c.env.DB, id, tripRow.user_id);
+  if (!trip) return err("Viagem não encontrada.", 404);
+  const model = buildTripReportModel(trip);
+  return new Response(renderTripReportHTML(model), {
+    headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store" },
+  });
+});
 
 trips.post("/", async (c) => {
   const user = c.get("user");

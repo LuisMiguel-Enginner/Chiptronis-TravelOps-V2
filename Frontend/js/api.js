@@ -143,6 +143,23 @@ export const api = {
     return request(`/trips${qs ? `?${qs}` : ""}`);
   },
   getTrip: (id) => request(`/trips/${id}`),
+  tripReportUrl: (id) => `${API_BASE}/trips/${id}/report`,
+  fetchTripReport: async (id) => {
+    const token = getToken();
+    const response = await fetch(`${API_BASE}/trips/${id}/report`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      let message = `Erro ${response.status}`;
+      try {
+        const data = await response.json();
+        message = data?.error || message;
+      } catch {}
+      throw new Error(message);
+    }
+    return response.blob();
+  },
   createTrip: (body) => request("/trips", { method: "POST", json: body }),
   updateTrip: (id, body) =>
     request(`/trips/${id}`, { method: "PUT", json: body }),
