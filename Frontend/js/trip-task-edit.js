@@ -236,16 +236,7 @@ function updateTaskTypeFields() {
   if (vehicleFields) vehicleFields.classList.add("hidden-fields");
   if (vehicleDetailFields) vehicleDetailFields.classList.add("hidden-fields");
 
-  const normalizedType = String(type || "")
-    .trim()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-
   if (shouldShowVehicleDetailFields(type)) {
-    if (vehicleDetailFields) vehicleDetailFields.classList.remove("hidden-fields");
-    if (vehicleDetailFields) vehicleDetailFields.classList.add("required-fields");
-  } else if (normalizedType === "analise de veiculos") {
     if (vehicleDetailFields) vehicleDetailFields.classList.remove("hidden-fields");
     if (vehicleDetailFields) vehicleDetailFields.classList.add("required-fields");
   }

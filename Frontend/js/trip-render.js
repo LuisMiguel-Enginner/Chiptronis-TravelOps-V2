@@ -16,6 +16,7 @@ import {
   isTravelType,
   normalizeWorkType,
   filterVehicleDetailCustomFields,
+  filterWorkTypesForProject,
 } from "./task-field-rules.js";
 
 import {
@@ -35,6 +36,15 @@ let personalTaskSchedule = {
   allowConflict: false,
 };
 let availableWorkTypes = [];
+const DIVERSOS_PROJECT = "Diversos";
+const DIVERSOS_WORK_TYPES = [
+  "Almoço",
+  "Viagem",
+  "Deslocamento",
+  "Análise de veículos",
+  "Visita",
+  "Acompanhamento",
+];
 
 function getTripDays(startDate, endDate) {
   const dates = [];
@@ -129,6 +139,10 @@ function updateTaskTypeFields() {
   } else if (type === "Análise de veículos") {
     if (vehicleDetailFields) showElement(vehicleDetailFields);
     if (plateInput) plateInput.required = true;
+  }
+
+  if (!requiresVehicleFields(type) && demandVehicleFields) {
+    hideElement(demandVehicleFields);
   }
 
   const lunch = isLunchType(type);
@@ -1213,7 +1227,10 @@ export function prepareTaskForm(
 
   const projectSelect = document.getElementById("project_id");
   if (projectSelect && !projectSelect.dataset.listenerAttached) {
-    projectSelect.addEventListener("change", loadCustomFieldsForForm);
+    projectSelect.addEventListener("change", () => {
+      updateWorkTypesForProject();
+      loadCustomFieldsForForm();
+    });
     projectSelect.dataset.listenerAttached = "1";
   }
 
@@ -1255,6 +1272,7 @@ export function prepareTaskForm(
     }
   }
 
+  updateWorkTypesForProject();
   updateTaskTypeFields();
   lastTaskDate = dateInput?.value || "";
   refreshPersonalSchedule(t, dateInput?.value || "");
@@ -1327,6 +1345,24 @@ function renderWorkTypeOptions(types) {
   if (current) sel.value = current;
 }
 
+function updateWorkTypesForProject() {
+  const projectSelect = document.getElementById("project_id");
+  if (!projectSelect) return;
+  const selectedProject = String(projectSelect.selectedOptions?.[0]?.textContent || "").trim();
+  const currentWorkType = document.getElementById("work_type")?.value || "";
+
+  const isDiversos = normalizeWorkType(selectedProject) === normalizeWorkType(DIVERSOS_PROJECT);
+  const types = isDiversos
+    ? DIVERSOS_WORK_TYPES
+    : filterWorkTypesForProject(availableWorkTypes, selectedProject);
+
+  renderWorkTypeOptions(types);
+  const workType = document.getElementById("work_type");
+  if (workType && currentWorkType && types.some((type) => normalizeWorkType(type) === normalizeWorkType(currentWorkType))) {
+    workType.value = currentWorkType;
+  }
+}
+
 export function fillWorkTypes(types) {
   availableWorkTypes = [...new Set((types || []).map((type) => String(type || "").trim()).filter(Boolean))];
   renderWorkTypeOptions(availableWorkTypes);
@@ -1337,12 +1373,13 @@ export function configureTaskEntryMode(mode = "task") {
   const projectWrap = document.getElementById("project_id")?.closest("div");
   const demandAnchor = document.getElementById("demanda-prioridade-anchor");
   const demandasPanel = document.getElementById("demandas-panel-container") || document.getElementById("demandas");
+  const selectedProject = String(document.getElementById("project_id")?.selectedOptions?.[0]?.textContent || "").trim();
+  const isDiversos = normalizeWorkType(selectedProject) === normalizeWorkType(DIVERSOS_PROJECT);
   const types = normalizedMode === "other"
     ? ["Refeição", "Viagem", "Deslocamento"]
-    : availableWorkTypes.filter((type) => {
-        const normalized = normalizeWorkType(type);
-        return normalized !== "refeicao" && normalized !== "viagem";
-      });
+    : isDiversos
+      ? DIVERSOS_WORK_TYPES
+      : filterWorkTypesForProject(availableWorkTypes, selectedProject);
 
   renderWorkTypeOptions(types);
   const taskForm = document.getElementById("task-form");
@@ -1379,13 +1416,19 @@ export function fillProjects(projects) {
   if (!sel) return;
   const current = sel.value;
   sel.innerHTML = '<option value="">Sem projeto</option>';
+  const diversosOption = document.createElement("option");
+  diversosOption.value = DIVERSOS_PROJECT;
+  diversosOption.textContent = DIVERSOS_PROJECT;
+  sel.appendChild(diversosOption);
   for (const p of projects || []) {
+    if (normalizeWorkType(p.name) === normalizeWorkType(DIVERSOS_PROJECT)) continue;
     const opt = document.createElement("option");
     opt.value = p.id || p.name;
     opt.textContent = p.name;
     sel.appendChild(opt);
   }
   if (current) sel.value = current;
+  updateWorkTypesForProject();
 }
 
 function preencherCamposPelaDemanda(atividadesSelecionadas = [], { veiculoCompativel = true } = {}) {

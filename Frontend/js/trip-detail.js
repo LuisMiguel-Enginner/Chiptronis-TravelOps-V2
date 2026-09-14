@@ -11,7 +11,7 @@ import {
   hasPersonalTaskConflict,
   hasConfirmedPersonalTaskConflict,
   setupPanelToggles,
-} from "./trip-render.js?v=13";
+} from "./trip-render.js?v=16";
 import { confirmDialog } from "./ui.js";
 import {
   getLocationConsent,
