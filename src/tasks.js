@@ -838,6 +838,7 @@ taskRoutes.post("/:id/tasks", async (c) => {
     ).bind(demanda_veiculo_id, taskId).run();
   }
 
+  let vehicleDemandWarning = null;
   if (!eh_atividade_prioridade) {
     try {
       await registrarVeiculoDaAtividadeRealizada(c.env.DB, id, userId, {
@@ -852,6 +853,7 @@ taskRoutes.post("/:id/tasks", async (c) => {
       }, demanda_veiculo_id || null);
     } catch (vehicleError) {
       console.error("Falha ao cadastrar veículo e demanda da atividade:", vehicleError);
+      vehicleDemandWarning = String(vehicleError?.message || vehicleError || "Erro desconhecido");
     }
   }
 
@@ -929,7 +931,11 @@ taskRoutes.post("/:id/tasks", async (c) => {
   });
 
   return json(
-    { success: true, trip: await fetchTripFull(c.env.DB, id, userId) },
+    {
+      success: true,
+      trip: await fetchTripFull(c.env.DB, id, userId),
+      vehicle_demand_warning: vehicleDemandWarning,
+    },
     201,
   );
 });
