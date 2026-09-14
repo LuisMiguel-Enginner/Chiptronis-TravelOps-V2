@@ -326,7 +326,7 @@ function populateDemandVehicleFields(trip) {
 
       existing.atividades = [
         ...(existing.atividades || []),
-        ...(vehicle.atividades || []),
+        ...(vehicle.atividades || []).filter((activity) => activity.status !== "concluida"),
       ];
       existing.demanda_tipo_projeto = demand.tipo_projeto || existing.demanda_tipo_projeto || "";
       existing.demanda_tipo_trabalho = demand.tipo_trabalho || existing.demanda_tipo_trabalho || "";

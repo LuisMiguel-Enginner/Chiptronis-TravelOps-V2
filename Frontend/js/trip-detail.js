@@ -1,5 +1,5 @@
 import { api, hideAlert, showAlert } from "./api.js";
-import { renderTripVehicles } from "./trip-vehicles.js";
+import { renderTripVehicles } from "./trip-vehicles.js?v=4";
 import { mountShell } from "./layout.js";
 import {
   fillWorkTypes,

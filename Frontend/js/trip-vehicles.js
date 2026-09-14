@@ -20,6 +20,23 @@ function vehicleIdentity(vehicle) {
     .join('|');
 }
 
+function taskMatchesVehicle(task, vehicle) {
+  if (Number(task.demanda_veiculo_id) === Number(vehicle.id)) return true;
+  const taskValues = [task.montadora, task.modelo, task.submodelo, task.ano, task.plate];
+  const vehicleValues = [vehicle.montadora, vehicle.modelo, vehicle.versao_modelo, vehicle.ano, vehicle.placa];
+  const normalize = (value, isPlate = false) => {
+    const normalized = normalizeVehiclePart(value);
+    return isPlate ? normalized.replace(/[^a-z0-9]/g, '') : normalized;
+  };
+  const matchesCore = taskValues.slice(0, 4).every((value, index) =>
+    normalize(value) === normalize(vehicleValues[index]),
+  );
+  if (!matchesCore) return false;
+  const taskPlate = normalize(taskValues[4], true);
+  const vehiclePlate = normalize(vehicleValues[4], true);
+  return !taskPlate || !vehiclePlate || taskPlate === vehiclePlate;
+}
+
 function mergeTripDemandsIntoVehicles(vehicles, demandas) {
   const mergedVehicles = (vehicles || []).map((vehicle) => ({
     ...vehicle,
@@ -152,6 +169,28 @@ function renderDemandRows(vehicle, manage, open = false) {
   return `<div class="vehicle-demands ${open ? '' : 'is-collapsed'}">${groupsHtml}</div>`;
 }
 
+function renderUserTaskRows(vehicle, open = false) {
+  const tasks = vehicle.userTasks || [];
+  const content = tasks.length
+    ? tasks.map((task) => `
+      <div class="vehicle-task-row">
+        <div class="vehicle-task-main">
+          <strong>${escapeHtml(task.work_type || 'Tarefa')}</strong>
+          <span>${escapeHtml(task.summary || 'Atividade realizada')}</span>
+        </div>
+        <div class="vehicle-task-meta">
+          ${demandStatusBadge('concluida')}
+          <span class="vehicle-task-time">${escapeHtml(task.task_date || '')} · ${escapeHtml(task.start_time || '--:--')}–${escapeHtml(task.end_time || '--:--')}</span>
+        </div>
+      </div>`).join('')
+    : '<div class="vehicle-demand-empty">Nenhuma tarefa realizada por você neste veículo.</div>';
+
+  return `<div class="vehicle-demands vehicle-user-tasks ${open ? '' : 'is-collapsed'}">
+    <div class="vehicle-task-heading">Tarefas realizadas por você</div>
+    <div class="vehicle-task-list">${content}</div>
+  </div>`;
+}
+
 function renderVehicleCard(vehicle, manage, open = false) {
   return `<article class="vehicle-card">
     <div class="vehicle-card-header">
@@ -161,7 +200,7 @@ function renderVehicleCard(vehicle, manage, open = false) {
       </button>
       ${manage ? `<button type="button" class="btn btn-secondary btn-sm btn-add-vehicle-demand" data-vehicle-id="${vehicle.id}">Adicionar demanda</button>` : ''}
     </div>
-    ${manage ? `<div id="vehicle-demands-${vehicle.id}">${renderDemandRows(vehicle, manage, open)}</div>` : ''}
+    <div id="vehicle-demands-${vehicle.id}">${manage ? renderDemandRows(vehicle, manage, open) : renderUserTaskRows(vehicle, open)}</div>
   </article>`;
 }
 
@@ -229,6 +268,19 @@ export async function renderTripVehicles(container, trip, user, { alertEl } = {}
 function renderVehicleList(container, vehicles, trip, user, { alertEl } = {}) {
   const manage = canManageDemands(user);
   vehicles = mergeTripDemandsIntoVehicles(vehicles, trip.demandas || []);
+  if (!manage) {
+    const currentUserId = Number(user?.id || user?.user_id || 0);
+    const tasks = Array.isArray(trip.tasks) ? trip.tasks : [];
+    vehicles = vehicles.map((vehicle) => ({
+      ...vehicle,
+      userTasks: tasks.filter((task) => {
+        const responsibleIds = Array.isArray(task.responsible_ids)
+          ? task.responsible_ids.map(Number)
+          : String(task.responsible_ids || task.responsible_id || '').split(',').map(Number);
+        return currentUserId > 0 && responsibleIds.includes(currentUserId) && taskMatchesVehicle(task, vehicle);
+      }),
+    }));
+  }
   container.innerHTML = `<div class="vehicle-page-header"><div><h2>${manage ? 'Veículos e fornecer demandas' : 'Veículos'}</h2><p class="text-muted">Veículos disponíveis nesta viagem.</p></div><button type="button" class="btn btn-primary" id="btn-add-trip-vehicle-tab">Adicionar veículo</button></div>
     <div class="vehicle-list">${vehicles.length ? vehicles.map((vehicle, index) => renderVehicleCard(vehicle, manage, index === 0)).join('') : '<div class="empty-state">Nenhum veículo cadastrado nesta viagem.</div>'}</div>`;
   container.querySelector('#btn-add-trip-vehicle-tab')?.addEventListener('click', () => renderVehicleDialog(trip, (next) => renderVehicleList(container, next, trip, user, { alertEl })));

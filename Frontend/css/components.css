@@ -2847,6 +2847,15 @@ html[data-theme="dark"] .alert-info .alert-icon {
 .vehicle-demand-delete .ti-trash::before { content: '\1F5D1'; font-size: 1rem; }
 .vehicle-demand-delete:hover { color: var(--danger-600, var(--text)); }
 .vehicle-demand-empty { padding: 1rem; color: var(--text-2); font-size: 0.82rem; text-align: center; border: 1px dashed var(--border); border-radius: var(--radius-sm); }
+.vehicle-task-heading { margin-bottom: 0.45rem; padding: 0 0.2rem; color: var(--text-2); font-size: 0.76rem; font-weight: 700; }
+.vehicle-task-list { overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.vehicle-task-row { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--border); }
+.vehicle-task-row:last-child { border-bottom: 0; }
+.vehicle-task-main { display: flex; flex-direction: column; min-width: 0; gap: 0.18rem; }
+.vehicle-task-main strong { color: var(--text); font-size: 0.8rem; }
+.vehicle-task-main span { overflow: hidden; color: var(--text-2); font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
+.vehicle-task-meta { display: flex; flex: 0 0 auto; align-items: center; gap: 0.65rem; }
+.vehicle-task-time { flex: 0 0 auto; color: var(--text-2); font-size: 0.72rem; white-space: nowrap; }
 .trip-vehicles-empty { padding: 1.15rem; color: var(--text-2); text-align: center; border: 1px dashed #d9dce0; border-radius: var(--radius-sm); }
 .trip-vehicle-summary { display: flex; align-items: center; gap: 1rem; min-height: 4rem; padding: 0.7rem 0.85rem; border: 1px solid #d9dce0; border-radius: var(--radius-sm); background: var(--surface); }
 .trip-vehicle-summary + .trip-vehicle-summary,
