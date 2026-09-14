@@ -340,32 +340,37 @@ function populateDemandVehicleFields(trip) {
   if (!vehicleFields || !vehicleSelect || !activityField || !activitySelect) return;
 
   const vehiclesByIdentity = new Map();
-  const vehiclesById = new Map();
-
-  for (const vehicle of trip?.vehicles || []) {
-    const normalizedVehicle = {
-      ...vehicle,
-      id: vehicle.id,
-      atividades: [],
-      vehicleFromTrip: true,
-    };
-    vehiclesByIdentity.set(vehicleIdentity(vehicle), normalizedVehicle);
-    if (vehicle.id != null) vehiclesById.set(Number(vehicle.id), normalizedVehicle);
-  }
 
   for (const demand of trip?.demandas || []) {
     for (const vehicle of demand.veiculos || []) {
-      const identity = vehicleIdentity(vehicle);
-      const isVehicleDemand = String(demand.id || '').startsWith('vehicle-demand-');
-      const existing = (isVehicleDemand && vehiclesById.get(Number(vehicle.id))) || vehiclesByIdentity.get(identity);
-      if (!existing) continue;
+      const demandVehicleId = Number(vehicle.id || 0);
+      if (!demandVehicleId) continue;
 
-      existing.atividades = [
-        ...(existing.atividades || []),
-        ...(vehicle.atividades || []).filter((activity) => activity.status !== "concluida"),
-      ];
+      const identity = vehicleIdentity(vehicle);
+      const existing = vehiclesByIdentity.get(identity) || {
+        id: demandVehicleId,
+        montadora: vehicle.montadora || "",
+        modelo: vehicle.modelo || "",
+        versao_modelo: vehicle.versao_modelo || "",
+        placa: vehicle.placa || "",
+        ano: vehicle.ano || "",
+        atividades: [],
+        demanda_tipo_projeto: demand.tipo_projeto || "",
+        demanda_tipo_trabalho: demand.tipo_trabalho || "",
+      };
+
+      const mergedActivities = [...(existing.atividades || []), ...(vehicle.atividades || []).filter((activity) => activity.status !== "concluida")];
+      const uniqueActivities = new Map();
+      for (const activity of mergedActivities) {
+        const activityKey = [activity?.id ?? "", activity?.atividade_descricao ?? activity?.descricao ?? "", activity?.prioridade ?? "", activity?.status ?? ""].join("|");
+        if (!uniqueActivities.has(activityKey)) {
+          uniqueActivities.set(activityKey, { ...activity });
+        }
+      }
+      existing.atividades = [...uniqueActivities.values()];
       existing.demanda_tipo_projeto = demand.tipo_projeto || existing.demanda_tipo_projeto || "";
       existing.demanda_tipo_trabalho = demand.tipo_trabalho || existing.demanda_tipo_trabalho || "";
+      vehiclesByIdentity.set(identity, existing);
     }
   }
 
@@ -1449,14 +1454,56 @@ function preencherCamposPelaDemanda(atividadesSelecionadas = [], { veiculoCompat
 
   const workTypeSelect = document.getElementById("work_type");
   const projectSelect = document.getElementById("project_id");
+  const demandVehicleSelect = document.getElementById("demanda_veiculo_id");
+  const demandActivitySelect = document.getElementById("demanda_atividade_id");
+  const demandActivityField = document.getElementById("demand-activity-field");
 
   if (!veiculoCompativel) {
     setVehicleDetailFields(null);
     if (workTypeSelect) workTypeSelect.value = "";
     if (projectSelect) projectSelect.value = "";
+    if (demandVehicleSelect) demandVehicleSelect.value = "";
     updateTaskTypeFields();
     loadCustomFieldsForForm();
     return;
+  }
+
+  if (demandVehicleSelect && demanda.veiculoId) {
+    const vehicleOption = [...demandVehicleSelect.options].find(
+      (option) => String(option.value) === String(demanda.veiculoId),
+    );
+    if (vehicleOption) {
+      demandVehicleSelect.value = vehicleOption.value;
+    }
+  }
+
+  const tripDemandVehicle = Array.isArray(window.__currentTrip?.demandas)
+    ? window.__currentTrip.demandas
+        .flatMap((item) => Array.isArray(item.veiculos) ? item.veiculos : [])
+        .find((vehicle) => String(vehicle.id) === String(demanda.veiculoId || ""))
+    : null;
+  const tripDemandActivities = Array.isArray(tripDemandVehicle?.atividades)
+    ? tripDemandVehicle.atividades.filter((activity) => activity.status !== "concluida")
+    : [];
+
+  if (demandActivitySelect) {
+    demandActivitySelect.innerHTML = '<option value="">Selecione uma demanda</option>' +
+      tripDemandActivities.map((activity) =>
+        `<option value="${activity.id}">${escapeHtml(activity.atividade_descricao || "Demanda")}${activity.prioridade ? ` · P${activity.prioridade}` : ""}</option>`,
+      ).join("");
+
+    if (demanda.atividadeId) {
+      const activityOption = [...demandActivitySelect.options].find(
+        (option) => String(option.value) === String(demanda.atividadeId),
+      );
+      if (activityOption) {
+        demandActivitySelect.value = activityOption.value;
+      }
+    }
+  }
+
+  if (demandActivityField) {
+    demandActivityField.classList.toggle("hidden-fields", !tripDemandActivities.length);
   }
 
   setVehicleDetailFields({
@@ -1480,6 +1527,8 @@ function preencherCamposPelaDemanda(atividadesSelecionadas = [], { veiculoCompat
     );
     if (projectOption) projectSelect.value = projectOption.value;
   }
+
+  syncDemandVehiclePlateAlertState();
 }
 
 async function loadProjects(opts = {}) {

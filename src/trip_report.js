@@ -13,6 +13,49 @@ function parseTaskResponsibles(task) {
   return ids.map((id) => ({ id, full_name: task.responsible_full_name || "—" }));
 }
 
+function flattenDemandActivities(trip) {
+  const activities = [];
+
+  for (const demanda of Array.isArray(trip?.demandas) ? trip.demandas : []) {
+    for (const veiculo of Array.isArray(demanda.veiculos) ? demanda.veiculos : []) {
+      for (const atividade of Array.isArray(veiculo.atividades) ? veiculo.atividades : []) {
+        activities.push({
+          id: `demanda-${atividade.id || veiculo.id || demanda.id}`,
+          task_date: trip?.start_date || trip?.end_date || "",
+          start_time: "",
+          end_time: "",
+          work_type: String(demanda?.tipo_trabalho || "Demanda").trim() || "Demanda",
+          location: "",
+          summary: atividade?.atividade_descricao || atividade?.descricao || "Demanda",
+          pending_items: atividade?.status === "concluida" ? "" : "Demanda pendente",
+          status: atividade?.status || "pendente",
+          responsible_ids: [],
+          responsibles: [],
+        });
+      }
+    }
+  }
+
+  return activities;
+}
+
+function isLeaderPositionValue(position) {
+  const value = String(position || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return value === "lider" || value.startsWith("lider ") || value.startsWith("lider-");
+}
+
+function resolveCoordinatorName(trip, owner) {
+  const leaderMember = (trip.members || []).find((member) => isLeaderPositionValue(member.position_title));
+  if (leaderMember) {
+    return leaderMember.manager_name || leaderMember.full_name || owner?.manager_name || "—";
+  }
+  return owner?.manager_name || "—";
+}
+
 function taskIsCompleted(task) {
   return !String(task.pending_items || "").trim();
 }
@@ -34,7 +77,7 @@ function timeToMinutes(value) {
 }
 
 export function buildTripReportModel(trip) {
-  const tasks = Array.isArray(trip.tasks) ? trip.tasks : [];
+  const tasks = [...(Array.isArray(trip.tasks) ? trip.tasks : []), ...flattenDemandActivities(trip)];
   const owner = (trip.members || []).find(
     (member) => Number(member.user_id || member.id) === Number(trip.user_id),
   );
@@ -122,7 +165,7 @@ export function buildTripReportModel(trip) {
       sector: trip.sector,
       priority: trip.priority || "normal",
       employee: owner?.full_name || "—",
-      coordinator: owner?.manager_name || "—",
+      coordinator: resolveCoordinatorName(trip, owner),
       participants: memberNames.join(", ") || "—",
       objectiveMet: trip.checklist?.objective_met ?? null,
       objectiveNotes: trip.checklist?.objective_notes || "",

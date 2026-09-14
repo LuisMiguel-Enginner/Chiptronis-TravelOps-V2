@@ -489,15 +489,38 @@ export async function fetchTripFull(db, tripId, userId) {
       .bind(trip.user_id)
       .first();
     if (owner) {
-      const exists = (members || []).some((m) => Number(m.user_id || m.id) === Number(owner.id));
-      if (!exists) {
+      let ownerManagerName = owner.manager_name || null;
+      if (!ownerManagerName && owner.sector) {
+        const leaderRow = await db
+          .prepare(
+            `SELECT full_name
+             FROM users
+             WHERE sector = ?
+               AND LOWER(REPLACE(REPLACE(position_title, 'í', 'i'), 'Í', 'I')) = 'lider'
+             LIMIT 1`
+          )
+          .bind(owner.sector)
+          .first();
+        ownerManagerName = leaderRow?.full_name || ownerManagerName;
+      }
+
+      const ownerMemberIndex = (members || []).findIndex(
+        (m) => Number(m.user_id || m.id) === Number(owner.id),
+      );
+
+      if (ownerMemberIndex >= 0) {
+        members[ownerMemberIndex] = {
+          ...members[ownerMemberIndex],
+          manager_name: ownerManagerName || members[ownerMemberIndex].manager_name || null,
+        };
+      } else {
         const ownerMember = {
           id: null,
           trip_id: tripId,
           user_id: owner.id,
           full_name: owner.full_name,
           sector: owner.sector || null,
-          manager_name: owner.manager_name || null,
+          manager_name: ownerManagerName,
           position_title: owner.position_title || null,
           employee_id: owner.employee_id || null,
         };
