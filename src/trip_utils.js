@@ -5,6 +5,7 @@ import {
   statusLabel,
 } from './helpers.js';
 import { fetchDemandasViagem } from './demandas.js';
+import { normalizePlate, normalizeVehicleField } from './vehicle-identity.js';
 
 export async function autoUpdateTripStatus(db, tripId) {
   const trip = await db
@@ -426,10 +427,8 @@ export async function fetchTripFull(db, tripId, userId) {
     })(),
   ]);
 
-  const normalizeDemandMatchValue = (value, field = '') => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return field === 'placa' ? normalized.replace(/[^a-z0-9]/g, '') : normalized;
-  };
+  const normalizeDemandMatchValue = (value, field = '') =>
+    field === 'placa' ? normalizePlate(value) : normalizeVehicleField(value);
 
   const vehicleDemands = (vehiclesResult || []).flatMap((vehicle) =>
     (vehicle.demands || []).map((demand) => {

@@ -1,5 +1,6 @@
 import { api, showAlert } from './api.js';
 import { escapeHtml } from './layout.js';
+import { normalizePlate, normalizeVehicleField, vehicleIdentity } from './vehicle-identity.js';
 
 function canManageDemands(user) {
   const position = String(user?.position_title || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -10,24 +11,11 @@ function vehicleLabel(vehicle) {
   return [vehicle.montadora, vehicle.modelo, vehicle.placa].filter(Boolean).join(' · ') || `Veículo ${vehicle.id}`;
 }
 
-function normalizeVehiclePart(value) {
-  return String(value ?? '').trim().toLowerCase();
-}
-
-function vehicleIdentity(vehicle) {
-  return [vehicle.montadora, vehicle.modelo, vehicle.versao_modelo, vehicle.ano, vehicle.placa]
-    .map(normalizeVehiclePart)
-    .join('|');
-}
-
 function taskMatchesVehicle(task, vehicle) {
   if (Number(task.demanda_veiculo_id) === Number(vehicle.id)) return true;
   const taskValues = [task.montadora, task.modelo, task.submodelo, task.ano, task.plate];
   const vehicleValues = [vehicle.montadora, vehicle.modelo, vehicle.versao_modelo, vehicle.ano, vehicle.placa];
-  const normalize = (value, isPlate = false) => {
-    const normalized = normalizeVehiclePart(value);
-    return isPlate ? normalized.replace(/[^a-z0-9]/g, '') : normalized;
-  };
+  const normalize = (value, isPlate = false) => isPlate ? normalizePlate(value) : normalizeVehicleField(value);
   const matchesCore = taskValues.slice(0, 4).every((value, index) =>
     normalize(value) === normalize(vehicleValues[index]),
   );
@@ -55,14 +43,14 @@ function mergeTripDemandsIntoVehicles(vehicles, demandas) {
           activity.atividade_modelo_id || '',
           activity.atividade_descricao || '',
           activity.prioridade || 1,
-        ].map(normalizeVehiclePart).join('|');
+        ].map(normalizeVehicleField).join('|');
         const alreadyPresent = vehicle.demands.some((demand) => {
           const existingKey = [
             demand.tipo_projeto || '',
             demand.atividade_modelo_id || '',
             demand.atividade || '',
             demand.prioridade || 1,
-          ].map(normalizeVehiclePart).join('|');
+          ].map(normalizeVehicleField).join('|');
           return existingKey === demandKey;
         });
         if (alreadyPresent) continue;

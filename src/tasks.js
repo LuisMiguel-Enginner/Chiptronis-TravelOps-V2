@@ -13,6 +13,7 @@ import {
 import { fetchTripFull } from "./trip_utils.js";
 import { notifyUsers, notifyUsersWithEmail } from "./notifications.js";
 import { logActivity } from "./activity.js";
+import { normalizePlate } from "./vehicle-identity.js";
 
 async function atualizarStatusDemandaAtividade(db, demandaAtividadeId, userId) {
   if (!demandaAtividadeId) return;
@@ -65,7 +66,7 @@ async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados, v
 
   const versaoModelo = String(dados.submodelo || '').trim() || null;
   const ano = String(dados.ano || '').trim() || null;
-  const placa = String(dados.plate || '').trim().toUpperCase() || null;
+  const placa = normalizePlate(dados.plate) || null;
 
   if (!vehicleId) {
     const existente = await db.prepare(`
@@ -75,35 +76,11 @@ async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados, v
         AND LOWER(TRIM(modelo)) = LOWER(TRIM(?))
         AND IFNULL(LOWER(TRIM(versao_modelo)), '') = IFNULL(LOWER(TRIM(?)), '')
         AND IFNULL(TRIM(ano), '') = IFNULL(TRIM(?), '')
-        AND IFNULL(UPPER(TRIM(placa)), '') = IFNULL(UPPER(TRIM(?)), '')
+        AND IFNULL(REPLACE(REPLACE(UPPER(TRIM(placa)), '-', ''), ' ', ''), '') = IFNULL(REPLACE(REPLACE(UPPER(TRIM(?)), '-', ''), ' ', ''), '')
       LIMIT 1
     `).bind(tripId, montadora, modelo, versaoModelo, ano, placa).first();
 
     vehicleId = existente?.id || 0;
-
-    if (!vehicleId) {
-      const candidatoSemPlaca = await db.prepare(`
-        SELECT id, placa FROM vehicles
-        WHERE trip_id = ?
-          AND LOWER(TRIM(montadora)) = LOWER(TRIM(?))
-          AND LOWER(TRIM(modelo)) = LOWER(TRIM(?))
-          AND IFNULL(LOWER(TRIM(versao_modelo)), '') = IFNULL(LOWER(TRIM(?)), '')
-          AND IFNULL(TRIM(ano), '') = IFNULL(TRIM(?), '')
-        ORDER BY id ASC
-        LIMIT 1
-      `).bind(tripId, montadora, modelo, versaoModelo, ano).first();
-
-      if (candidatoSemPlaca && (!candidatoSemPlaca.placa || String(candidatoSemPlaca.placa).trim() === '')) {
-        if (placa) {
-          await db.prepare(`
-            UPDATE vehicles
-            SET placa = ?
-            WHERE id = ?
-          `).bind(placa, candidatoSemPlaca.id).run();
-        }
-        vehicleId = candidatoSemPlaca.id;
-      }
-    }
 
     if (!vehicleId) {
       vehicleId = (await db.prepare(`

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { requireUser } from './auth.js';
 import { err, getLedSector, isAdmin, json } from './helpers.js';
 import { getAccessibleTrip } from './tasks.js';
+import { normalizePlate, normalizeVehicleField } from './vehicle-identity.js';
 
 export const vehicleRoutes = new Hono();
 vehicleRoutes.use('*', requireUser);
@@ -156,10 +157,6 @@ vehicleRoutes.delete('/vehicle-demands/:demandId', async (c) => {
   if (!trip) return err('Viagem não encontrada.', 404);
   if (!canManageDemands(viewer, trip)) return err('Apenas líderes ou administradores podem excluir demandas.', 403);
 
-  const normalize = (value, plate = false) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return plate ? normalized.replace(/[^a-z0-9]/g, '') : normalized;
-  };
   const { results: legacyCandidates } = await c.env.DB.prepare(`
     SELECT da.id AS atividade_id, dv.id AS demanda_veiculo_id, d.id AS demanda_id,
            d.tipo_projeto, dv.montadora, dv.modelo, dv.versao_modelo, dv.ano, dv.placa,
@@ -172,14 +169,14 @@ vehicleRoutes.delete('/vehicle-demands/:demandId', async (c) => {
   `).bind(demand.trip_id).all();
   const vehicle = await getVehicle(c.env.DB, demand.trip_id, demand.vehicle_id);
   const linkedLegacy = (legacyCandidates || []).find((candidate) =>
-    normalize(candidate.tipo_projeto) === normalize(demand.tipo_projeto)
-    && normalize(candidate.montadora) === normalize(vehicle?.montadora)
-    && normalize(candidate.modelo) === normalize(vehicle?.modelo)
-    && normalize(candidate.versao_modelo) === normalize(vehicle?.versao_modelo)
-    && normalize(candidate.ano) === normalize(vehicle?.ano)
-    && normalize(candidate.placa, true) === normalize(vehicle?.placa, true)
+    normalizeVehicleField(candidate.tipo_projeto) === normalizeVehicleField(demand.tipo_projeto)
+    && normalizeVehicleField(candidate.montadora) === normalizeVehicleField(vehicle?.montadora)
+    && normalizeVehicleField(candidate.modelo) === normalizeVehicleField(vehicle?.modelo)
+    && normalizeVehicleField(candidate.versao_modelo) === normalizeVehicleField(vehicle?.versao_modelo)
+    && normalizeVehicleField(candidate.ano) === normalizeVehicleField(vehicle?.ano)
+    && normalizePlate(candidate.placa) === normalizePlate(vehicle?.placa)
     && (String(candidate.atividade_modelo_id || '') === String(demand.atividade_modelo_id || '')
-      || normalize(candidate.atividade_descricao) === normalize(demand.atividade))
+      || normalizeVehicleField(candidate.atividade_descricao) === normalizeVehicleField(demand.atividade))
   );
 
   await c.env.DB.prepare('DELETE FROM vehicle_demands WHERE id = ?').bind(demandId).run();

@@ -7,6 +7,7 @@ import {
 } from "./api.js";
 
 import { escapeHtml } from "./layout.js";
+import { vehicleIdentity } from "./vehicle-identity.js";
 
 import {
   shouldShowVehicleFields,
@@ -178,6 +179,14 @@ function formatPlateInput(value) {
   return `${plate.slice(0, 3)}-${plate.slice(3)}`;
 }
 
+function setTaskPlateFieldVisibility(hidden) {
+  const plateInput = document.getElementById("plate");
+  const plateField = plateInput?.closest("div");
+  if (!plateInput || !plateField) return;
+  plateField.classList.toggle("hidden-fields", hidden);
+  if (hidden) plateInput.required = false;
+}
+
 function ensureDemandVehiclePlateAlert() {
   const vehicleFields = document.getElementById("demand-vehicle-fields");
   if (!vehicleFields) return null;
@@ -212,6 +221,13 @@ function ensureDemandVehiclePlateAlert() {
               <small>A placa será usada para criar outro veículo.</small>
             </span>
           </label>
+          <label class="plate-choice">
+            <input type="radio" name="demanda_veiculo_placa_action" value="unplated" />
+            <span class="plate-choice-copy">
+              <strong>Veículo sem emplacamento</strong>
+              <small>A tarefa será registrada sem informar uma placa.</small>
+            </span>
+          </label>
         </fieldset>
         <div class="plate-input-group">
           <label for="demanda_veiculo_placa">Placa do veículo</label>
@@ -238,9 +254,11 @@ function ensureDemandVehiclePlateAlert() {
       syncDemandVehiclePlateAlertState();
     });
     confirmButton?.addEventListener("click", () => {
-      if (!isValidPlate(plateInput?.value)) return;
+      const selectedAction = alert.querySelector('input[name="demanda_veiculo_placa_action"]:checked')?.value || "";
+      if (selectedAction !== "unplated" && !isValidPlate(plateInput?.value)) return;
       const taskPlateInput = document.getElementById("plate");
-      if (taskPlateInput) taskPlateInput.value = plateInput.value;
+      if (taskPlateInput) taskPlateInput.value = selectedAction === "unplated" ? "" : plateInput.value;
+      setTaskPlateFieldVisibility(selectedAction === "unplated");
       alert.classList.add("hidden-fields");
       const saveButton = document.getElementById("btn-save-task");
       if (saveButton) saveButton.disabled = false;
@@ -255,6 +273,7 @@ function ensureDemandVehiclePlateAlert() {
       }
       const taskPlateInput = document.getElementById("plate");
       if (taskPlateInput) taskPlateInput.value = "";
+      setTaskPlateFieldVisibility(false);
       alert.classList.add("hidden-fields");
       const saveButton = document.getElementById("btn-save-task");
       if (saveButton) saveButton.disabled = true;
@@ -273,6 +292,7 @@ function syncDemandVehiclePlateAlertState() {
 
   if (!requiresPlatePrompt) {
     alert?.classList.add("hidden-fields");
+    setTaskPlateFieldVisibility(false);
     if (saveButton) saveButton.disabled = false;
     return;
   }
@@ -281,12 +301,21 @@ function syncDemandVehiclePlateAlertState() {
   const placa = document.getElementById("demanda_veiculo_placa")?.value.trim() || "";
   const plateInput = document.getElementById("demanda_veiculo_placa");
   const confirmButton = document.getElementById("demanda-veiculo-placa-confirm");
+  const plateGroup = plateInput?.closest(".plate-input-group");
+  const noPlateSelected = selectedAction === "unplated";
 
   alert?.classList.remove("hidden-fields");
-  if (plateInput) plateInput.disabled = !selectedAction;
-  if (confirmButton) confirmButton.disabled = !(selectedAction && isValidPlate(placa));
+  setTaskPlateFieldVisibility(noPlateSelected);
+  plateGroup?.classList.toggle("hidden-fields", noPlateSelected);
+  if (plateInput) plateInput.disabled = !selectedAction || noPlateSelected;
+  if (noPlateSelected) {
+    if (plateInput) plateInput.value = "";
+    const taskPlateInput = document.getElementById("plate");
+    if (taskPlateInput) taskPlateInput.value = "";
+  }
+  if (confirmButton) confirmButton.disabled = !(noPlateSelected || (selectedAction && isValidPlate(placa)));
   if (saveButton) saveButton.disabled = true;
-  if (selectedAction && document.activeElement !== plateInput) plateInput?.focus();
+  if (selectedAction && !noPlateSelected && document.activeElement !== plateInput) plateInput?.focus();
 }
 
 function populateDemandVehicleFields(trip) {
@@ -296,13 +325,6 @@ function populateDemandVehicleFields(trip) {
   const activitySelect = document.getElementById("demanda_atividade_id");
   if (!vehicleFields || !vehicleSelect || !activityField || !activitySelect) return;
 
-  const normalizeVehicleIdentity = (vehicle) => [
-    vehicle.montadora,
-    vehicle.modelo,
-    vehicle.versao_modelo,
-    vehicle.ano,
-    vehicle.placa,
-  ].map((value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "")).join("|");
   const vehiclesByIdentity = new Map();
   const vehiclesById = new Map();
 
@@ -313,13 +335,13 @@ function populateDemandVehicleFields(trip) {
       atividades: [],
       vehicleFromTrip: true,
     };
-    vehiclesByIdentity.set(normalizeVehicleIdentity(vehicle), normalizedVehicle);
+    vehiclesByIdentity.set(vehicleIdentity(vehicle), normalizedVehicle);
     if (vehicle.id != null) vehiclesById.set(Number(vehicle.id), normalizedVehicle);
   }
 
   for (const demand of trip?.demandas || []) {
     for (const vehicle of demand.veiculos || []) {
-      const identity = normalizeVehicleIdentity(vehicle);
+      const identity = vehicleIdentity(vehicle);
       const isVehicleDemand = String(demand.id || '').startsWith('vehicle-demand-');
       const existing = (isVehicleDemand && vehiclesById.get(Number(vehicle.id))) || vehiclesByIdentity.get(identity);
       if (!existing) continue;

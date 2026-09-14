@@ -1,5 +1,5 @@
 import { api, hideAlert, showAlert } from "./api.js";
-import { renderTripVehicles } from "./trip-vehicles.js?v=4";
+import { renderTripVehicles } from "./trip-vehicles.js?v=5";
 import { mountShell } from "./layout.js";
 import {
   fillWorkTypes,
@@ -11,7 +11,7 @@ import {
   hasPersonalTaskConflict,
   hasConfirmedPersonalTaskConflict,
   setupPanelToggles,
-} from "./trip-render.js?v=9";
+} from "./trip-render.js?v=13";
 import { confirmDialog } from "./ui.js";
 import {
   getLocationConsent,

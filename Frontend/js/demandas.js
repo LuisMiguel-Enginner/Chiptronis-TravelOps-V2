@@ -1,5 +1,6 @@
 import { api, showAlert, hideAlert, formatDateBR } from './api.js';
 import { escapeHtml } from './layout.js';
+import { vehicleIdentity } from './vehicle-identity.js';
 
 export function prioridadeCor(prioridade) {
   const p = Number(prioridade || 0);
@@ -596,18 +597,11 @@ export function renderQuadroDemandasIntegrante(container, demandas, tripId, { us
     return;
   }
 
-  const normalizeVehiclePart = (value) => String(value ?? '').trim().toLowerCase();
   const vehiclesByKey = new Map();
 
   todas.forEach((demanda) => {
     (demanda.veiculos || []).forEach((vehicle) => {
-      const vehicleKey = [
-        vehicle.montadora,
-        vehicle.modelo,
-        vehicle.versao_modelo,
-        vehicle.ano,
-        vehicle.placa,
-      ].map(normalizeVehiclePart).join('|');
+      const vehicleKey = vehicleIdentity(vehicle);
 
       if (!vehiclesByKey.has(vehicleKey)) {
         vehiclesByKey.set(vehicleKey, {
