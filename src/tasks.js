@@ -50,7 +50,7 @@ async function atualizarStatusDemandaAtividade(db, demandaAtividadeId, userId) {
     .bind(novoStatus, demandaId).run();
 }
 
-async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados) {
+async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados, vehicleIdOverride = null) {
   const montadora = String(dados.montadora || '').trim();
   const modelo = String(dados.modelo || '').trim();
   if (!montadora || !modelo) return;
@@ -58,27 +58,71 @@ async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados) {
   const versaoModelo = String(dados.submodelo || '').trim() || null;
   const ano = String(dados.ano || '').trim() || null;
   const placa = String(dados.plate || '').trim().toUpperCase() || null;
-  const existente = await db.prepare(`
-    SELECT id FROM vehicles
-    WHERE trip_id = ?
-      AND LOWER(TRIM(montadora)) = LOWER(TRIM(?))
-      AND LOWER(TRIM(modelo)) = LOWER(TRIM(?))
-      AND IFNULL(LOWER(TRIM(versao_modelo)), '') = IFNULL(LOWER(TRIM(?)), '')
-      AND IFNULL(TRIM(ano), '') = IFNULL(TRIM(?), '')
-      AND IFNULL(UPPER(TRIM(placa)), '') = IFNULL(UPPER(TRIM(?)), '')
-    LIMIT 1
-  `).bind(tripId, montadora, modelo, versaoModelo, ano, placa).first();
 
-  const vehicleId = existente?.id || (await db.prepare(`
-    INSERT INTO vehicles (trip_id, montadora, modelo, versao_modelo, ano, placa, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).bind(tripId, montadora, modelo, versaoModelo, ano, placa, userId).run()).meta.last_row_id;
+  let vehicleId = Number(vehicleIdOverride || 0);
+
+  if (!vehicleId) {
+    const existente = await db.prepare(`
+      SELECT id, placa FROM vehicles
+      WHERE trip_id = ?
+        AND LOWER(TRIM(montadora)) = LOWER(TRIM(?))
+        AND LOWER(TRIM(modelo)) = LOWER(TRIM(?))
+        AND IFNULL(LOWER(TRIM(versao_modelo)), '') = IFNULL(LOWER(TRIM(?)), '')
+        AND IFNULL(TRIM(ano), '') = IFNULL(TRIM(?), '')
+        AND IFNULL(UPPER(TRIM(placa)), '') = IFNULL(UPPER(TRIM(?)), '')
+      LIMIT 1
+    `).bind(tripId, montadora, modelo, versaoModelo, ano, placa).first();
+
+    vehicleId = existente?.id || 0;
+
+    if (!vehicleId) {
+      const candidatoSemPlaca = await db.prepare(`
+        SELECT id, placa FROM vehicles
+        WHERE trip_id = ?
+          AND LOWER(TRIM(montadora)) = LOWER(TRIM(?))
+          AND LOWER(TRIM(modelo)) = LOWER(TRIM(?))
+          AND IFNULL(LOWER(TRIM(versao_modelo)), '') = IFNULL(LOWER(TRIM(?)), '')
+          AND IFNULL(TRIM(ano), '') = IFNULL(TRIM(?), '')
+        ORDER BY id ASC
+        LIMIT 1
+      `).bind(tripId, montadora, modelo, versaoModelo, ano).first();
+
+      if (candidatoSemPlaca && (!candidatoSemPlaca.placa || String(candidatoSemPlaca.placa).trim() === '')) {
+        if (placa) {
+          await db.prepare(`
+            UPDATE vehicles
+            SET placa = ?
+            WHERE id = ?
+          `).bind(placa, candidatoSemPlaca.id).run();
+        }
+        vehicleId = candidatoSemPlaca.id;
+      }
+    }
+
+    if (!vehicleId) {
+      vehicleId = (await db.prepare(`
+        INSERT INTO vehicles (trip_id, montadora, modelo, versao_modelo, ano, placa, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(tripId, montadora, modelo, versaoModelo, ano, placa, userId).run()).meta.last_row_id;
+    }
+  }
 
   let tipoProjeto = String(dados.work_type || '').trim() || 'Atividade realizada';
   if (dados.projectId && Number(dados.projectId) > 0) {
     const project = await db.prepare('SELECT name FROM leader_projects WHERE id = ?').bind(Number(dados.projectId)).first();
     if (project?.name) tipoProjeto = project.name;
   }
+
+  const demandaExistente = await db.prepare(`
+    SELECT id FROM vehicle_demands
+    WHERE vehicle_id = ?
+      AND trip_id = ?
+      AND atividade = ?
+      AND tipo_projeto = ?
+    LIMIT 1
+  `).bind(vehicleId, tripId, String(dados.summary || '').trim(), tipoProjeto).first();
+
+  if (demandaExistente) return;
 
   await db.prepare(`
     INSERT INTO vehicle_demands (vehicle_id, trip_id, tipo_projeto, atividade_modelo_id, atividade, prioridade, status, created_by)
@@ -183,6 +227,74 @@ async function saveCustomFields(db, taskId, fields) {
     )
     .bind(...flatBinds)
     .run();
+}
+
+async function processarVeiculoDemandaPlaca(db, tripId, userId, payload) {
+  const demandaVeiculoId = Number(payload.demanda_veiculo_id || 0);
+  const action = String(payload.demanda_veiculo_placa_action || "").trim();
+  const placa = String(payload.demanda_veiculo_placa || payload.plate || "").trim();
+
+  if (!demandaVeiculoId || !placa || !["existing", "new"].includes(action)) {
+    return {
+      demandaVeiculoId,
+      placa: payload.plate || placa || null,
+      criadoVeiculo: false,
+      atualizadoVeiculo: false,
+    };
+  }
+
+  const vehicle = await db.prepare(
+    "SELECT * FROM vehicles WHERE id = ? AND trip_id = ?",
+  ).bind(demandaVeiculoId, tripId).first();
+
+  if (!vehicle) {
+    return {
+      demandaVeiculoId,
+      placa: payload.plate || placa || null,
+      criadoVeiculo: false,
+      atualizadoVeiculo: false,
+    };
+  }
+
+  if (action === "existing") {
+    if (!vehicle.placa) {
+      await db.prepare(
+        "UPDATE vehicles SET placa = ? WHERE id = ? AND trip_id = ?",
+      ).bind(placa, demandaVeiculoId, tripId).run();
+      return {
+        demandaVeiculoId,
+        placa,
+        criadoVeiculo: false,
+        atualizadoVeiculo: true,
+      };
+    }
+    return {
+      demandaVeiculoId,
+      placa: vehicle.placa || placa,
+      criadoVeiculo: false,
+      atualizadoVeiculo: false,
+    };
+  }
+
+  const novoVeiculo = await db.prepare(`
+    INSERT INTO vehicles (trip_id, montadora, modelo, versao_modelo, ano, placa, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    tripId,
+    vehicle.montadora,
+    vehicle.modelo,
+    vehicle.versao_modelo || null,
+    vehicle.ano || null,
+    placa,
+    userId,
+  ).run();
+
+  return {
+    demandaVeiculoId: Number(novoVeiculo.meta.last_row_id),
+    placa,
+    criadoVeiculo: true,
+    atualizadoVeiculo: false,
+  };
 }
 
 async function getCustomFields(db, taskId) {
@@ -420,6 +532,8 @@ taskRoutes.post("/:id/tasks", async (c) => {
   let eh_atividade_prioridade = false;
   let demanda_atividade_id = null;
   let demanda_veiculo_id = null;
+  let demanda_veiculo_placa_action = "";
+  let demanda_veiculo_placa = "";
   let allow_conflict = false;
   const photoFiles = [];
 
@@ -449,6 +563,8 @@ taskRoutes.post("/:id/tasks", async (c) => {
     const rawDvId = form.get("demanda_veiculo_id");
     demanda_atividade_id = rawDaId && Number(rawDaId) > 0 ? Number(rawDaId) : null;
     demanda_veiculo_id = rawDvId && Number(rawDvId) > 0 ? Number(rawDvId) : null;
+    demanda_veiculo_placa_action = String(form.get("demanda_veiculo_placa_action") || "").trim();
+    demanda_veiculo_placa = String(form.get("demanda_veiculo_placa") || "").trim();
     allow_conflict = String(form.get("allow_conflict") || "") === "1";
   } else {
     let body;
@@ -481,6 +597,8 @@ taskRoutes.post("/:id/tasks", async (c) => {
     eh_atividade_prioridade = Boolean(body.eh_atividade_prioridade);
     demanda_atividade_id = body.demanda_atividade_id && Number(body.demanda_atividade_id) > 0 ? Number(body.demanda_atividade_id) : null;
     demanda_veiculo_id = body.demanda_veiculo_id && Number(body.demanda_veiculo_id) > 0 ? Number(body.demanda_veiculo_id) : null;
+    demanda_veiculo_placa_action = String(body.demanda_veiculo_placa_action || "").trim();
+    demanda_veiculo_placa = String(body.demanda_veiculo_placa || body.plate || "").trim();
     allow_conflict = Boolean(body.allow_conflict);
   }
 
@@ -686,7 +804,25 @@ taskRoutes.post("/:id/tasks", async (c) => {
     }
   }
 
-  if (!eh_atividade_prioridade && !demanda_veiculo_id) {
+  const veiculoDemandaPlacaResultado = await processarVeiculoDemandaPlaca(c.env.DB, id, userId, {
+    demanda_veiculo_id,
+    demanda_veiculo_placa_action,
+    demanda_veiculo_placa,
+    plate,
+  });
+
+  demanda_veiculo_id = veiculoDemandaPlacaResultado.demandaVeiculoId;
+  if (veiculoDemandaPlacaResultado.placa) {
+    plate = veiculoDemandaPlacaResultado.placa;
+  }
+
+  if (veiculoDemandaPlacaResultado.criadoVeiculo || veiculoDemandaPlacaResultado.atualizadoVeiculo) {
+    await c.env.DB.prepare(
+      'UPDATE trip_tasks SET demanda_veiculo_id = ? WHERE id = ?',
+    ).bind(demanda_veiculo_id, taskId).run();
+  }
+
+  if (!eh_atividade_prioridade) {
     try {
       await registrarVeiculoDaAtividadeRealizada(c.env.DB, id, userId, {
         montadora,
@@ -697,7 +833,7 @@ taskRoutes.post("/:id/tasks", async (c) => {
         projectId: project_id,
         workType: work_type,
         summary,
-      });
+      }, demanda_veiculo_id || null);
     } catch (vehicleError) {
       console.error("Falha ao cadastrar veículo e demanda da atividade:", vehicleError);
     }

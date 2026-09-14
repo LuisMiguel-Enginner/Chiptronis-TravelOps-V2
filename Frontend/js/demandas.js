@@ -1004,7 +1004,7 @@ export function extrairPayloadDemandaDoForm() {
   return {
     eh_atividade_prioridade: ehPrioridade,
     demanda_atividade_id: ehPrioridade && atividadeId > 0 ? atividadeId : null,
-    demanda_veiculo_id: ehPrioridade && veiculoId > 0 ? veiculoId : null,
+    demanda_veiculo_id: veiculoId > 0 ? veiculoId : null,
   };
 }
 

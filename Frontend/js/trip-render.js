@@ -163,6 +163,65 @@ function formatDemandVehicle(vehicle) {
     .join(" · ") || `Veículo ${vehicle.id}`;
 }
 
+function ensureDemandVehiclePlateAlert() {
+  const vehicleFields = document.getElementById("demand-vehicle-fields");
+  if (!vehicleFields) return null;
+
+  let alert = vehicleFields.querySelector("#demanda-veiculo-placa-alert");
+  if (!alert) {
+    alert = document.createElement("div");
+    alert.id = "demanda-veiculo-placa-alert";
+    alert.className = "alert alert-warning hidden-fields";
+    alert.innerHTML = `
+      <div class="alert-content" style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-weight:600;">Este veículo ainda não tem placa cadastrada.</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="radio" name="demanda_veiculo_placa_action" value="existing" />
+            <span>É este mesmo veículo — só faltava a placa</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="radio" name="demanda_veiculo_placa_action" value="new" />
+            <span>É outro veículo, mesmo modelo</span>
+          </label>
+        </div>
+        <div>
+          <label for="demanda_veiculo_placa" style="display:block; margin-bottom:6px; font-weight:600;">Informe a placa</label>
+          <input id="demanda_veiculo_placa" type="text" placeholder="Ex: ABC-1234" style="width:100%;" />
+        </div>
+      </div>
+    `;
+    vehicleFields.appendChild(alert);
+    alert.querySelectorAll('input[name="demanda_veiculo_placa_action"]').forEach((input) => {
+      input.addEventListener("change", syncDemandVehiclePlateAlertState);
+    });
+    const plateInput = alert.querySelector("#demanda_veiculo_placa");
+    plateInput?.addEventListener("input", syncDemandVehiclePlateAlertState);
+  }
+
+  return alert;
+}
+
+function syncDemandVehiclePlateAlertState() {
+  const vehicleSelect = document.getElementById("demanda_veiculo_id");
+  const alert = ensureDemandVehiclePlateAlert();
+  const saveButton = document.getElementById("btn-save-task");
+  const selectedOption = vehicleSelect?.selectedOptions?.[0];
+  const requiresPlatePrompt = Boolean(selectedOption && selectedOption.dataset.hasPlaca === "false");
+
+  if (!requiresPlatePrompt) {
+    alert?.classList.add("hidden-fields");
+    if (saveButton) saveButton.disabled = false;
+    return;
+  }
+
+  const selectedAction = document.querySelector('input[name="demanda_veiculo_placa_action"]:checked')?.value || "";
+  const placa = document.getElementById("demanda_veiculo_placa")?.value.trim() || "";
+
+  alert?.classList.remove("hidden-fields");
+  if (saveButton) saveButton.disabled = !(selectedAction && placa);
+}
+
 function populateDemandVehicleFields(trip) {
   const vehicleFields = document.getElementById("demand-vehicle-fields");
   const vehicleSelect = document.getElementById("demanda_veiculo_id");
@@ -182,7 +241,7 @@ function populateDemandVehicleFields(trip) {
   for (const vehicle of trip?.vehicles || []) {
     vehiclesByIdentity.set(normalizeVehicleIdentity(vehicle), {
       ...vehicle,
-      id: `trip-${vehicle.id}`,
+      id: vehicle.id,
       atividades: [],
       vehicleFromTrip: true,
     });
@@ -193,15 +252,16 @@ function populateDemandVehicleFields(trip) {
       const identity = normalizeVehicleIdentity(vehicle);
       const existing = vehiclesByIdentity.get(identity);
       vehiclesByIdentity.set(identity, {
-        ...vehicle,
         ...(existing || {}),
-        id: vehicle.id,
+        ...vehicle,
+        id: existing?.id ?? vehicle.id,
         atividades: [
           ...(existing?.atividades || []),
           ...(vehicle.atividades || []),
         ],
-        demanda_tipo_projeto: demand.tipo_projeto || "",
-        demanda_tipo_trabalho: demand.tipo_trabalho || "",
+        demanda_tipo_projeto: demand.tipo_projeto || existing?.demanda_tipo_projeto || "",
+        demanda_tipo_trabalho: demand.tipo_trabalho || existing?.demanda_tipo_trabalho || "",
+        vehicleFromTrip: Boolean(existing?.vehicleFromTrip) || Boolean(vehicle.vehicleFromTrip),
       });
     }
   }
@@ -209,7 +269,7 @@ function populateDemandVehicleFields(trip) {
   const vehicles = [...vehiclesByIdentity.values()];
   const currentVehicle = vehicleSelect.value;
   vehicleSelect.innerHTML = '<option value="">Sem veículo de demanda</option>' + vehicles
-    .map((vehicle) => `<option value="${vehicle.id}">${escapeHtml(formatDemandVehicle(vehicle))}</option>`)
+    .map((vehicle) => `<option value="${vehicle.id}" data-has-placa="${Boolean(vehicle.placa)}">${escapeHtml(formatDemandVehicle(vehicle))}</option>`)
     .join("");
   if (currentVehicle && vehicles.some((vehicle) => String(vehicle.id) === currentVehicle)) {
     vehicleSelect.value = currentVehicle;
@@ -217,10 +277,17 @@ function populateDemandVehicleFields(trip) {
 
   const updateActivityOptions = () => {
     const vehicle = vehicles.find((item) => String(item.id) === String(vehicleSelect.value));
+    const plateInput = document.getElementById("demanda_veiculo_placa");
+    if (plateInput) plateInput.value = "";
+    document.querySelectorAll('input[name="demanda_veiculo_placa_action"]').forEach((input) => {
+      input.checked = false;
+    });
+
     if (!vehicle) {
       activityField.classList.add("hidden-fields");
       activitySelect.innerHTML = '<option value="">Selecione uma demanda</option>';
       setVehicleDetailFields(null);
+      syncDemandVehiclePlateAlertState();
       return;
     }
 
@@ -231,6 +298,7 @@ function populateDemandVehicleFields(trip) {
         `<option value="${activity.id}">${escapeHtml(activity.atividade_descricao || "Demanda")}${activity.prioridade ? ` · P${activity.prioridade}` : ""}</option>`,
       ).join("");
     setVehicleDetailFields(vehicle);
+    syncDemandVehiclePlateAlertState();
   };
 
   if (!vehicleSelect.dataset.listenerAttached) {
@@ -1971,6 +2039,8 @@ export function taskFormPayload() {
     submodelo: document.getElementById("submodelo")?.value.trim() || null,
     ano: document.getElementById("ano")?.value.trim() || null,
     project_id: document.getElementById("project_id")?.value || null,
+    demanda_veiculo_placa_action: document.querySelector('input[name="demanda_veiculo_placa_action"]:checked')?.value || null,
+    demanda_veiculo_placa: document.getElementById("demanda_veiculo_placa")?.value.trim() || null,
     ...demandaPayload,
     custom_fields: Object.fromEntries(
       Array.from(

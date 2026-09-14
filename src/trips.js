@@ -303,8 +303,8 @@ trips.get("/users-for-members", async (c) => {
   const excludeTripId = Number(c.req.query("exclude_trip_id")) || 0;
 
   let sql = `SELECT id, full_name, email, sector, position_title, manager_name, employee_id
-             FROM users WHERE id != ?`;
-  const binds = [userId];
+             FROM users`;
+  const binds = [];
 
   if (startDate && endDate && endDate >= startDate) {
     sql += ` AND NOT EXISTS (

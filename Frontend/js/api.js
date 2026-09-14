@@ -318,6 +318,18 @@ export const api = {
     if (payload.demanda_veiculo_id) {
       fd.append("demanda_veiculo_id", String(payload.demanda_veiculo_id));
     }
+    if (payload.demanda_veiculo_placa_action) {
+      fd.append("demanda_veiculo_placa_action", payload.demanda_veiculo_placa_action);
+    }
+    if (payload.demanda_veiculo_placa) {
+      fd.append("demanda_veiculo_placa", payload.demanda_veiculo_placa);
+    }
+    if (payload.demanda_veiculo_placa_action) {
+      fd.append("demanda_veiculo_placa_action", payload.demanda_veiculo_placa_action);
+    }
+    if (payload.demanda_veiculo_placa) {
+      fd.append("demanda_veiculo_placa", payload.demanda_veiculo_placa);
+    }
     if (payload.custom_fields) {
       for (const [name, value] of Object.entries(payload.custom_fields)) {
         fd.append(`custom_${name}`, value || "");

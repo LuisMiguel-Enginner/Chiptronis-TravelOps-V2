@@ -917,7 +917,16 @@ document.getElementById("task-form")?.addEventListener("submit", async (e) => {
     setupPanelToggles();
     setupNewTaskMenu();
     prepareTaskForm(freshTrip, { keepDate: true });
-    showAlert(alertEl, "Tarefa salva com sucesso.", "success");
+
+    const plateMessageMap = {
+      existing: "Placa adicionada ao veículo existente.",
+      new: "Novo veículo criado na frota da viagem.",
+    };
+    showAlert(
+      alertEl,
+      plateMessageMap[payload.demanda_veiculo_placa_action] || "Tarefa salva com sucesso.",
+      "success",
+    );
 
     const taskId = res.task_id || (freshTrip?.tasks || []).slice(-1)[0]?.id || null;
     if (taskId && getLocationConsent(tripId) === true) {
