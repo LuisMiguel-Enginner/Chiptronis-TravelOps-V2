@@ -1145,7 +1145,10 @@ html[data-theme="dark"] .btn-success:hover:not(:disabled) {
   margin: 0;
   transform: translate(-50%, -50%);
   pointer-events: auto;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24), 0 0 0 100vmax rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.2), 0 0 0 100vmax rgba(15, 23, 42, 0.2);
 }
 .plate-alert-content {
   display: flex;
@@ -1153,6 +1156,12 @@ html[data-theme="dark"] .btn-success:hover:not(:disabled) {
   flex-direction: column;
   gap: 0.9rem;
   min-width: 0;
+}
+.plate-alert-heading {
+  margin: -0.85rem -1rem 0;
+  padding: 0.85rem 1rem;
+  background: #fff8e6;
+  border-bottom: 1px solid #f2dfad;
 }
 .plate-alert-heading {
   display: flex;
@@ -1252,6 +1261,28 @@ html[data-theme="dark"] .btn-success:hover:not(:disabled) {
 }
 .plate-input-group input {
   width: 100%;
+}
+.plate-input-group input:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+.plate-input-hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.plate-alert-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  margin: 0 -1rem -0.85rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+.plate-alert-actions .btn {
+  min-width: 6.5rem;
 }
 .alert-warning .alert-icon {
   background: var(--text);

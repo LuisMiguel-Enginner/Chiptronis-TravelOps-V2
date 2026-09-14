@@ -163,6 +163,21 @@ function formatDemandVehicle(vehicle) {
     .join(" · ") || `Veículo ${vehicle.id}`;
 }
 
+function normalizePlate(value) {
+  return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function isValidPlate(value) {
+  const plate = normalizePlate(value);
+  return /^[A-Z]{3}[0-9]{4}$/.test(plate) || /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/.test(plate);
+}
+
+function formatPlateInput(value) {
+  const plate = normalizePlate(value).slice(0, 7);
+  if (plate.length <= 3) return plate;
+  return `${plate.slice(0, 3)}-${plate.slice(3)}`;
+}
+
 function ensureDemandVehiclePlateAlert() {
   const vehicleFields = document.getElementById("demand-vehicle-fields");
   if (!vehicleFields) return null;
@@ -200,7 +215,12 @@ function ensureDemandVehiclePlateAlert() {
         </fieldset>
         <div class="plate-input-group">
           <label for="demanda_veiculo_placa">Placa do veículo</label>
-          <input id="demanda_veiculo_placa" type="text" placeholder="Ex.: ABC-1234" autocomplete="off" />
+          <input id="demanda_veiculo_placa" type="text" placeholder="Ex.: ABC-1234" autocomplete="off" maxlength="8" disabled />
+          <small class="plate-input-hint">Escolha uma opção acima para informar a placa.</small>
+        </div>
+        <div class="plate-alert-actions">
+          <button type="button" class="btn btn-secondary" id="demanda-veiculo-placa-cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="demanda-veiculo-placa-confirm" disabled>Confirmar</button>
         </div>
       </div>
     `;
@@ -209,7 +229,36 @@ function ensureDemandVehiclePlateAlert() {
       input.addEventListener("change", syncDemandVehiclePlateAlertState);
     });
     const plateInput = alert.querySelector("#demanda_veiculo_placa");
-    plateInput?.addEventListener("input", syncDemandVehiclePlateAlertState);
+    const confirmButton = alert.querySelector("#demanda-veiculo-placa-confirm");
+    const cancelButton = alert.querySelector("#demanda-veiculo-placa-cancel");
+    plateInput?.addEventListener("input", () => {
+      plateInput.value = formatPlateInput(plateInput.value);
+      const taskPlateInput = document.getElementById("plate");
+      if (taskPlateInput) taskPlateInput.value = plateInput.value;
+      syncDemandVehiclePlateAlertState();
+    });
+    confirmButton?.addEventListener("click", () => {
+      if (!isValidPlate(plateInput?.value)) return;
+      const taskPlateInput = document.getElementById("plate");
+      if (taskPlateInput) taskPlateInput.value = plateInput.value;
+      alert.classList.add("hidden-fields");
+      const saveButton = document.getElementById("btn-save-task");
+      if (saveButton) saveButton.disabled = false;
+    });
+    cancelButton?.addEventListener("click", () => {
+      alert.querySelectorAll('input[name="demanda_veiculo_placa_action"]').forEach((input) => {
+        input.checked = false;
+      });
+      if (plateInput) {
+        plateInput.value = "";
+        plateInput.disabled = true;
+      }
+      const taskPlateInput = document.getElementById("plate");
+      if (taskPlateInput) taskPlateInput.value = "";
+      alert.classList.add("hidden-fields");
+      const saveButton = document.getElementById("btn-save-task");
+      if (saveButton) saveButton.disabled = true;
+    });
   }
 
   return alert;
@@ -230,10 +279,14 @@ function syncDemandVehiclePlateAlertState() {
 
   const selectedAction = document.querySelector('input[name="demanda_veiculo_placa_action"]:checked')?.value || "";
   const placa = document.getElementById("demanda_veiculo_placa")?.value.trim() || "";
+  const plateInput = document.getElementById("demanda_veiculo_placa");
+  const confirmButton = document.getElementById("demanda-veiculo-placa-confirm");
 
   alert?.classList.remove("hidden-fields");
-  document.getElementById("demanda_veiculo_placa")?.focus();
-  if (saveButton) saveButton.disabled = !(selectedAction && placa);
+  if (plateInput) plateInput.disabled = !selectedAction;
+  if (confirmButton) confirmButton.disabled = !(selectedAction && isValidPlate(placa));
+  if (saveButton) saveButton.disabled = true;
+  if (selectedAction && document.activeElement !== plateInput) plateInput?.focus();
 }
 
 function populateDemandVehicleFields(trip) {
