@@ -149,6 +149,15 @@ function isTripEditMode(c) {
   return c.req.header("X-Trip-Edit-Mode") === "1";
 }
 
+function canEditCompletedTrip(c, trip = null) {
+  const viewer = c.get("user");
+  if (isTripEditMode(c)) return true;
+  if (!viewer) return false;
+  if (viewer.role === "admin" || viewer.role === "admin_master") return true;
+  if (Number(trip?.user_id) === Number(viewer.id)) return true;
+  return Boolean(getLedSector(viewer));
+}
+
 function timeToMinutes(value) {
   if (!value || !/^\d{2}:\d{2}$/.test(value)) return null;
   const [hours, minutes] = value.split(":").map(Number);
@@ -498,7 +507,7 @@ taskRoutes.post("/:id/tasks", async (c) => {
   const userId = c.get("userId");
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
-  if (trip.status === "completed" && !isTripEditMode(c)) {
+  if (trip.status === "completed" && !canEditCompletedTrip(c, trip)) {
     return err("Viagem concluída é somente leitura.");
   }
 
@@ -928,7 +937,7 @@ taskRoutes.delete("/:id/tasks/:taskId", async (c) => {
 
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
-  if (trip.status === "completed" && !isTripEditMode(c))
+  if (trip.status === "completed" && !canEditCompletedTrip(c, trip))
     return err("Viagem concluída é somente leitura.");
 
   const task = await c.env.DB.prepare(
@@ -980,7 +989,7 @@ taskRoutes.put("/:id/tasks/:taskId", async (c) => {
 
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
-  if (trip.status === "completed" && !isTripEditMode(c)) {
+  if (trip.status === "completed" && !canEditCompletedTrip(c, trip)) {
     return err("Viagem concluída é somente leitura.");
   }
 

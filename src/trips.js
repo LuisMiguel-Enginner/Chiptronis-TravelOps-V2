@@ -614,9 +614,16 @@ trips.get("/:id", async (c) => {
 trips.put("/:id", async (c) => {
   const id = Number(c.req.param("id"));
   const userId = c.get("userId");
+  const viewer = c.get("user");
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
-  if (trip.status === "completed" && c.req.header("X-Trip-Edit-Mode") !== "1")
+  const canEditCompletedTrip =
+    c.req.header("X-Trip-Edit-Mode") === "1" ||
+    viewer?.role === "admin" ||
+    viewer?.role === "admin_master" ||
+    Number(trip.user_id) === Number(viewer?.id) ||
+    Boolean(getLedSector(viewer));
+  if (trip.status === "completed" && !canEditCompletedTrip)
     return err("Viagem concluída não pode ser editada.");
 
   let body;

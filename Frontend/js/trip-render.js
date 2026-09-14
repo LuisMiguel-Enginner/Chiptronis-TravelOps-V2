@@ -71,6 +71,16 @@ export function setReadOnly(flag) {
   });
 }
 
+function canEditCompletedTrip(user, trip) {
+  if (!trip || trip.status !== "completed") return true;
+  if (new URLSearchParams(window.location.search).get("edit") === "1") return true;
+  if (!user) return false;
+  if (user.is_admin || user.is_admin_master) return true;
+  if (user.is_sector_leader) return true;
+  if (String(user.position_title || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === "lider") return true;
+  return Number(user.id || user.user_id) === Number(trip.user_id);
+}
+
 function hideElement(el) {
   if (el) el.classList.add("hidden-fields");
 }
@@ -2161,8 +2171,7 @@ export function renderTrip(t) {
   }
 
   prepareTaskForm(t, { clearDate: false });
-  const completedReadOnly = t.status === "completed" &&
-    new URLSearchParams(window.location.search).get("edit") !== "1";
+  const completedReadOnly = !canEditCompletedTrip(window.__currentUser || {}, t);
   setReadOnly(completedReadOnly);
   window.__currentTrip = t;
 
