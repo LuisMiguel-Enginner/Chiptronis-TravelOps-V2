@@ -51,14 +51,6 @@ async function atualizarStatusDemandaAtividade(db, demandaAtividadeId, userId) {
 }
 
 async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados, vehicleIdOverride = null) {
-  const montadora = String(dados.montadora || '').trim();
-  const modelo = String(dados.modelo || '').trim();
-  if (!montadora || !modelo) return;
-
-  const versaoModelo = String(dados.submodelo || '').trim() || null;
-  const ano = String(dados.ano || '').trim() || null;
-  const placa = String(dados.plate || '').trim().toUpperCase() || null;
-
   let vehicleId = Number(vehicleIdOverride || 0);
   if (vehicleId > 0) {
     const resolvedVehicle = await db.prepare(
@@ -66,6 +58,14 @@ async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados, v
     ).bind(vehicleId, tripId).first();
     if (!resolvedVehicle) vehicleId = 0;
   }
+
+  const montadora = String(dados.montadora || '').trim();
+  const modelo = String(dados.modelo || '').trim();
+  if (!vehicleId && (!montadora || !modelo)) return;
+
+  const versaoModelo = String(dados.submodelo || '').trim() || null;
+  const ano = String(dados.ano || '').trim() || null;
+  const placa = String(dados.plate || '').trim().toUpperCase() || null;
 
   if (!vehicleId) {
     const existente = await db.prepare(`
@@ -704,7 +704,7 @@ taskRoutes.post("/:id/tasks", async (c) => {
       .filter(Boolean);
     return (
       rangesOverlap(startMinutes, endMinutes, existingStart, existingEnd) &&
-      existingIds.includes(Number(userId))
+      existingIds.some((existingId) => uniqueIds.includes(existingId))
     );
   });
 
@@ -838,7 +838,6 @@ taskRoutes.post("/:id/tasks", async (c) => {
     ).bind(demanda_veiculo_id, taskId).run();
   }
 
-  let vehicleDemandWarning = null;
   if (!eh_atividade_prioridade) {
     try {
       await registrarVeiculoDaAtividadeRealizada(c.env.DB, id, userId, {
@@ -853,7 +852,6 @@ taskRoutes.post("/:id/tasks", async (c) => {
       }, demanda_veiculo_id || null);
     } catch (vehicleError) {
       console.error("Falha ao cadastrar veículo e demanda da atividade:", vehicleError);
-      vehicleDemandWarning = String(vehicleError?.message || vehicleError || "Erro desconhecido");
     }
   }
 
@@ -934,7 +932,6 @@ taskRoutes.post("/:id/tasks", async (c) => {
     {
       success: true,
       trip: await fetchTripFull(c.env.DB, id, userId),
-      vehicle_demand_warning: vehicleDemandWarning,
     },
     201,
   );

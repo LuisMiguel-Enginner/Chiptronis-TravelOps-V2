@@ -14,14 +14,25 @@ function setupSettingsPanelToggles() {
     if (!button || !content || button.dataset.settingsToggleBound === 'true') return;
 
     button.dataset.settingsToggleBound = 'true';
-    button.addEventListener('click', () => {
+    const toggle = () => {
       const collapsed = content.classList.toggle('collapsed');
       button.classList.toggle('collapsed', collapsed);
       button.setAttribute('aria-expanded', String(!collapsed));
       const title = panel.querySelector(':scope > .panel-header h2')?.textContent.trim() || 'painel';
       button.setAttribute('aria-label', `${collapsed ? 'Expandir' : 'Minimizar'} quadro ${title}`);
       button.setAttribute('title', `${collapsed ? 'Expandir' : 'Minimizar'} quadro ${title}`);
-    });
+    };
+    button.addEventListener('click', toggle);
+    const header = button.parentElement?.classList.contains('panel-header')
+      ? button.parentElement
+      : null;
+    if (header) {
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, select, textarea, label')) return;
+        toggle();
+      });
+    }
   });
 }
 

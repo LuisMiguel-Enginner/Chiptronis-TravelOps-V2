@@ -736,7 +736,7 @@ function renderTasks(t) {
     const card = e.target.closest(".task-card");
     if (!card) return;
     const taskId = Number(card.dataset.taskId);
-    const task = tasks.find((t) => t.id === taskId);
+    const task = tasks.find((t) => Number(t.id) === taskId);
     if (task) openTaskModal(task);
   });
 
@@ -746,7 +746,7 @@ function renderTasks(t) {
       if (!card) return;
       e.preventDefault();
       const taskId = Number(card.dataset.taskId);
-      const task = tasks.find((t) => t.id === taskId);
+      const task = tasks.find((t) => Number(t.id) === taskId);
       if (task) openTaskModal(task);
     }
   });
@@ -1443,7 +1443,10 @@ function getPersonalScheduleConflict(date, startTime, endTime) {
   const end = minutesFromTime(endTime);
   if (start == null || end == null || end <= start) return null;
 
+  const selectedIds = new Set(getSelectedTaskResponsibleIds());
+
   for (const schedule of Object.values(personalTaskSchedule.schedules)) {
+    if (selectedIds.size && !selectedIds.has(Number(schedule.user_id))) continue;
     const conflict = schedule.tasks.find((task) => {
       const occupiedStart = minutesFromTime(task.start_time);
       const occupiedEnd = minutesFromTime(task.end_time);
@@ -1844,7 +1847,7 @@ export function setupPanelToggles() {
     if (button.dataset.toggle === "demandas-panel") return;
     if (button.dataset.panelToggleBound === "true") return;
     button.dataset.panelToggleBound = "true";
-    button.addEventListener("click", (e) => {
+    const toggle = (e) => {
       e.preventDefault();
       const isForm = button.closest("#task-form-wrap");
       const collapsibleSection = button.closest(".collapsible-section");
@@ -1864,7 +1867,18 @@ export function setupPanelToggles() {
           : `panelState_${button.closest(".panel")?.querySelector("h2, h3")?.textContent || "panel"}`;
         localStorage.setItem(key, collapsed ? "collapsed" : "expanded");
       } catch (e) {}
-    });
+    };
+
+    button.addEventListener("click", toggle);
+    const header = button.closest(".panel-header, .panel-subheader, .collapsible-header");
+    if (header && header.dataset.panelHeaderToggleBound !== "true") {
+      header.dataset.panelHeaderToggleBound = "true";
+      header.style.cursor = "pointer";
+      header.addEventListener("click", (e) => {
+        if (e.target.closest("button, a, input, select, textarea, label")) return;
+        toggle(e);
+      });
+    }
   });
 
   try {
@@ -2020,6 +2034,11 @@ export function taskFormPayload() {
     .filter(Boolean);
 
   const demandaPayload = extrairPayloadDemandaDoForm();
+  const selectedVehicleId = Number(
+    document.getElementById("demanda_veiculo_id")?.value || 0,
+  );
+  const demandaVeiculoId = demandaPayload.demanda_veiculo_id ||
+    (selectedVehicleId > 0 ? selectedVehicleId : null);
 
   return {
     work_type: document.getElementById("work_type").value,
@@ -2042,6 +2061,7 @@ export function taskFormPayload() {
     demanda_veiculo_placa_action: document.querySelector('input[name="demanda_veiculo_placa_action"]:checked')?.value || null,
     demanda_veiculo_placa: document.getElementById("demanda_veiculo_placa")?.value.trim() || null,
     ...demandaPayload,
+    demanda_veiculo_id: demandaVeiculoId,
     custom_fields: Object.fromEntries(
       Array.from(
         document.querySelectorAll("#custom-fields-container input"),

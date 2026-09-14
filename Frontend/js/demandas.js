@@ -715,7 +715,7 @@ function wireDemandasPanelToggle(container) {
   const btn = container.querySelector('.panel-toggle[data-toggle="demandas-panel"]');
   const body = container.querySelector('.panel-content');
   if (!btn || !body) return;
-  btn.addEventListener('click', () => {
+  const toggle = () => {
     const isCollapsed = btn.classList.toggle('collapsed');
     body.classList.toggle('collapsed', isCollapsed);
     btn.setAttribute('aria-expanded', String(!isCollapsed));
@@ -725,7 +725,16 @@ function wireDemandasPanelToggle(container) {
       const key = `trip_demandas_panel_collapsed_v2`;
       localStorage.setItem(key, isCollapsed ? '1' : '0');
     } catch (e) {}
-  });
+  };
+  btn.addEventListener('click', toggle);
+  const header = btn.closest('.panel-header, .panel-subheader');
+  if (header) {
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', (event) => {
+      if (event.target.closest('button, a, input, select, textarea, label')) return;
+      toggle();
+    });
+  }
   try {
     const key = `trip_demandas_panel_collapsed_v2`;
     if (localStorage.getItem(key) === '1') {

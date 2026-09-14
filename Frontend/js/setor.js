@@ -19,7 +19,7 @@ const sectorFilters = {
 
 function setupSectorPanelToggles() {
   document.querySelectorAll('[data-sector-panel-toggle]').forEach((button) => {
-    button.addEventListener('click', () => {
+    const toggle = () => {
       const key = button.dataset.sectorPanelToggle;
       const content = document.querySelector(`[data-sector-panel-content="${key}"]`);
       if (!content) return;
@@ -28,7 +28,16 @@ function setupSectorPanelToggles() {
       button.setAttribute('aria-expanded', String(!collapsed));
       button.setAttribute('aria-label', collapsed ? 'Expandir painel' : 'Minimizar painel');
       button.setAttribute('title', collapsed ? 'Expandir painel' : 'Minimizar painel');
-    });
+    };
+    button.addEventListener('click', toggle);
+    const header = button.closest('.panel-header');
+    if (header) {
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', (event) => {
+        if (event.target.closest('button, a, input, select, textarea, label')) return;
+        toggle();
+      });
+    }
   });
 }
 

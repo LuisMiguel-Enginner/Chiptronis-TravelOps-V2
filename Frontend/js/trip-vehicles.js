@@ -232,7 +232,8 @@ function renderVehicleList(container, vehicles, trip, user, { alertEl } = {}) {
   container.innerHTML = `<div class="vehicle-page-header"><div><h2>${manage ? 'Veículos e fornecer demandas' : 'Veículos'}</h2><p class="text-muted">Veículos disponíveis nesta viagem.</p></div><button type="button" class="btn btn-primary" id="btn-add-trip-vehicle-tab">Adicionar veículo</button></div>
     <div class="vehicle-list">${vehicles.length ? vehicles.map((vehicle, index) => renderVehicleCard(vehicle, manage, index === 0)).join('') : '<div class="empty-state">Nenhum veículo cadastrado nesta viagem.</div>'}</div>`;
   container.querySelector('#btn-add-trip-vehicle-tab')?.addEventListener('click', () => renderVehicleDialog(trip, (next) => renderVehicleList(container, next, trip, user, { alertEl })));
-  container.querySelectorAll('[data-vehicle-toggle]').forEach((toggle) => toggle.addEventListener('click', () => {
+  container.querySelectorAll('[data-vehicle-toggle]').forEach((toggle) => {
+    const toggleDemands = () => {
     const demands = container.querySelector(`#vehicle-demands-${toggle.dataset.vehicleToggle}`);
     if (!demands) return;
     const isOpen = !demands.querySelector('.vehicle-demands')?.classList.toggle('is-collapsed');
@@ -240,7 +241,17 @@ function renderVehicleList(container, vehicles, trip, user, { alertEl } = {}) {
     const chevron = toggle.querySelector('.ti');
     chevron?.classList.toggle('ti-chevron-up', isOpen);
     chevron?.classList.toggle('ti-chevron-down', !isOpen);
-  }));
+    };
+    toggle.addEventListener('click', toggleDemands);
+    const header = toggle.closest('.vehicle-card-header');
+    if (header) {
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', (event) => {
+        if (event.target.closest('button')) return;
+        toggleDemands();
+      });
+    }
+  });
   if (manage) {
     container.querySelectorAll('.btn-add-vehicle-demand').forEach((button) => button.addEventListener('click', () => {
       const vehicle = vehicles.find((item) => Number(item.id) === Number(button.dataset.vehicleId));
