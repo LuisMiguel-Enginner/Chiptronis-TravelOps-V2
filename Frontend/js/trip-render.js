@@ -171,23 +171,36 @@ function ensureDemandVehiclePlateAlert() {
   if (!alert) {
     alert = document.createElement("div");
     alert.id = "demanda-veiculo-placa-alert";
-    alert.className = "alert alert-warning hidden-fields";
+    alert.className = "alert alert-warning alert-interactive hidden-fields";
     alert.innerHTML = `
-      <div class="alert-content" style="display:flex; flex-direction:column; gap:10px;">
-        <div style="font-weight:600;">Este veículo ainda não tem placa cadastrada.</div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="demanda_veiculo_placa_action" value="existing" />
-            <span>É este mesmo veículo — só faltava a placa</span>
-          </label>
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="demanda_veiculo_placa_action" value="new" />
-            <span>É outro veículo, mesmo modelo</span>
-          </label>
+      <div class="plate-alert-content">
+        <div class="plate-alert-heading">
+          <span class="plate-alert-icon" aria-hidden="true">!</span>
+          <div>
+            <strong>Este veículo ainda não tem placa cadastrada</strong>
+            <span>Escolha como deseja registrar esta tarefa.</span>
+          </div>
         </div>
-        <div>
-          <label for="demanda_veiculo_placa" style="display:block; margin-bottom:6px; font-weight:600;">Informe a placa</label>
-          <input id="demanda_veiculo_placa" type="text" placeholder="Ex: ABC-1234" style="width:100%;" />
+        <fieldset class="plate-choice-group">
+          <legend>Identificação do veículo</legend>
+          <label class="plate-choice">
+            <input type="radio" name="demanda_veiculo_placa_action" value="existing" />
+            <span class="plate-choice-copy">
+              <strong>É este mesmo veículo</strong>
+              <small>Apenas a placa estava faltando.</small>
+            </span>
+          </label>
+          <label class="plate-choice">
+            <input type="radio" name="demanda_veiculo_placa_action" value="new" />
+            <span class="plate-choice-copy">
+              <strong>É outro veículo do mesmo modelo</strong>
+              <small>A placa será usada para criar outro veículo.</small>
+            </span>
+          </label>
+        </fieldset>
+        <div class="plate-input-group">
+          <label for="demanda_veiculo_placa">Placa do veículo</label>
+          <input id="demanda_veiculo_placa" type="text" placeholder="Ex.: ABC-1234" autocomplete="off" />
         </div>
       </div>
     `;
@@ -219,6 +232,7 @@ function syncDemandVehiclePlateAlertState() {
   const placa = document.getElementById("demanda_veiculo_placa")?.value.trim() || "";
 
   alert?.classList.remove("hidden-fields");
+  document.getElementById("demanda_veiculo_placa")?.focus();
   if (saveButton) saveButton.disabled = !(selectedAction && placa);
 }
 
