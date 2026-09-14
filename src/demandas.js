@@ -206,7 +206,45 @@ export async function fetchDemandasViagem(db, viagemId) {
       veiculos: veiculosPorDemanda.get(Number(d.id)) || [],
     }));
 
-    return demandasFormatadas;
+    const { results: vehicleDemandRows } = await db.prepare(`
+      SELECT vd.id, vd.vehicle_id, vd.trip_id, vd.tipo_projeto, vd.tipo_trabalho,
+             vd.atividade_modelo_id, vd.atividade, vd.prioridade, vd.status, vd.created_by, vd.created_at,
+             v.montadora, v.modelo, v.versao_modelo, v.ano, v.placa,
+             u.full_name AS created_by_name
+      FROM vehicle_demands vd
+      INNER JOIN vehicles v ON v.id = vd.vehicle_id
+      LEFT JOIN users u ON u.id = vd.created_by
+      WHERE vd.trip_id = ?
+      ORDER BY vd.created_at DESC, vd.id DESC
+    `).bind(viagemId).all();
+
+    const vehicleDemandFormatadas = (vehicleDemandRows || []).map((row) => ({
+      id: `vehicle-demand-${row.id}`,
+      viagem_id: row.trip_id,
+      tipo_projeto: String(row.tipo_projeto || '').trim() || 'Sem projeto',
+      tipo_trabalho: String(row.tipo_trabalho || '').trim(),
+      status: row.status || 'pendente',
+      criado_por: row.created_by,
+      criado_em: row.created_at,
+      criado_nome: row.created_by_name || 'Líder',
+      veiculos: [{
+        id: Number(row.vehicle_id),
+        montadora: row.montadora,
+        modelo: row.modelo,
+        versao_modelo: row.versao_modelo,
+        ano: row.ano,
+        placa: row.placa,
+        atividades: [{
+          id: Number(row.id),
+          atividade_modelo_id: row.atividade_modelo_id,
+          atividade_descricao: row.atividade,
+          prioridade: Number(row.prioridade || 1),
+          status: row.status || 'pendente',
+        }],
+      }],
+    }));
+
+    return [...demandasFormatadas, ...vehicleDemandFormatadas];
   } catch (e) {
     console.error('Erro ao buscar demandas:', e);
     return [];

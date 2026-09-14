@@ -60,6 +60,12 @@ async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados, v
   const placa = String(dados.plate || '').trim().toUpperCase() || null;
 
   let vehicleId = Number(vehicleIdOverride || 0);
+  if (vehicleId > 0) {
+    const resolvedVehicle = await db.prepare(
+      'SELECT id FROM vehicles WHERE id = ? AND trip_id = ?',
+    ).bind(vehicleId, tripId).first();
+    if (!resolvedVehicle) vehicleId = 0;
+  }
 
   if (!vehicleId) {
     const existente = await db.prepare(`
@@ -600,6 +606,15 @@ taskRoutes.post("/:id/tasks", async (c) => {
     demanda_veiculo_placa_action = String(body.demanda_veiculo_placa_action || "").trim();
     demanda_veiculo_placa = String(body.demanda_veiculo_placa || body.plate || "").trim();
     allow_conflict = Boolean(body.allow_conflict);
+  }
+
+  if (demanda_veiculo_id) {
+    const vehicle = await c.env.DB.prepare(
+      'SELECT id FROM vehicles WHERE id = ? AND trip_id = ?',
+    ).bind(demanda_veiculo_id, id).first();
+    if (!vehicle) {
+      demanda_veiculo_id = null;
+    }
   }
 
   if (eh_atividade_prioridade && !demanda_atividade_id) {

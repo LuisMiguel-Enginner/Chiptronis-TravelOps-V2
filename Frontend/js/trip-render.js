@@ -251,18 +251,14 @@ function populateDemandVehicleFields(trip) {
     for (const vehicle of demand.veiculos || []) {
       const identity = normalizeVehicleIdentity(vehicle);
       const existing = vehiclesByIdentity.get(identity);
-      vehiclesByIdentity.set(identity, {
-        ...(existing || {}),
-        ...vehicle,
-        id: existing?.id ?? vehicle.id,
-        atividades: [
-          ...(existing?.atividades || []),
-          ...(vehicle.atividades || []),
-        ],
-        demanda_tipo_projeto: demand.tipo_projeto || existing?.demanda_tipo_projeto || "",
-        demanda_tipo_trabalho: demand.tipo_trabalho || existing?.demanda_tipo_trabalho || "",
-        vehicleFromTrip: Boolean(existing?.vehicleFromTrip) || Boolean(vehicle.vehicleFromTrip),
-      });
+      if (!existing) continue;
+
+      existing.atividades = [
+        ...(existing.atividades || []),
+        ...(vehicle.atividades || []),
+      ];
+      existing.demanda_tipo_projeto = demand.tipo_projeto || existing.demanda_tipo_projeto || "";
+      existing.demanda_tipo_trabalho = demand.tipo_trabalho || existing.demanda_tipo_trabalho || "";
     }
   }
 
