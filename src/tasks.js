@@ -145,6 +145,10 @@ async function notificarLiderDemandaConcluida(db, trip, atividade, userId, env) 
 
 export const taskRoutes = new Hono();
 
+function isTripEditMode(c) {
+  return c.req.header("X-Trip-Edit-Mode") === "1";
+}
+
 function timeToMinutes(value) {
   if (!value || !/^\d{2}:\d{2}$/.test(value)) return null;
   const [hours, minutes] = value.split(":").map(Number);
@@ -494,6 +498,9 @@ taskRoutes.post("/:id/tasks", async (c) => {
   const userId = c.get("userId");
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
+  if (trip.status === "completed" && !isTripEditMode(c)) {
+    return err("Viagem concluída é somente leitura.");
+  }
 
   const contentType = c.req.header("content-type") || "";
   let work_type = "";
@@ -921,7 +928,7 @@ taskRoutes.delete("/:id/tasks/:taskId", async (c) => {
 
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
-  if (trip.status === "completed")
+  if (trip.status === "completed" && !isTripEditMode(c))
     return err("Viagem concluída é somente leitura.");
 
   const task = await c.env.DB.prepare(
@@ -973,6 +980,9 @@ taskRoutes.put("/:id/tasks/:taskId", async (c) => {
 
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
+  if (trip.status === "completed" && !isTripEditMode(c)) {
+    return err("Viagem concluída é somente leitura.");
+  }
 
   const task = await c.env.DB.prepare(
     "SELECT * FROM trip_tasks WHERE id = ? AND trip_id = ?",

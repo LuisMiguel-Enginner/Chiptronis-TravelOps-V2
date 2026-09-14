@@ -18,6 +18,9 @@ import { renderTripReportHTML } from "./trip_report_template.js";
 export const trips = new Hono();
 trips.use("*", requireUser);
 
+export const tripConflictRoutes = new Hono();
+tripConflictRoutes.use("*", requireUser);
+
 function validarPlaca(placa) {
   if (!placa) return true;
   const limpa = String(placa).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -127,6 +130,61 @@ async function findOverlappingMemberIds(db, memberIds, startDate, endDate, exclu
 
   return (results || []).map((row) => Number(row.id));
 }
+
+tripConflictRoutes.post("/check-conflitos", async (c) => {
+  let body;
+  try {
+    body = await c.req.json();
+  } catch {
+    return err("JSON inválido.");
+  }
+
+  const userIds = [...new Set((Array.isArray(body.usuario_ids) ? body.usuario_ids : [])
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0))];
+  const startDate = String(body.data_inicio || "").trim();
+  const endDate = String(body.data_fim || "").trim();
+  const excludeTripId = Number(body.viagem_id) || 0;
+
+  if (!userIds.length || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < startDate) {
+    return json({ conflitos: [] });
+  }
+
+  const placeholders = userIds.map(() => "?").join(", ");
+  const { results } = await c.env.DB.prepare(`
+    SELECT DISTINCT
+      participant.user_id,
+      occupied_trip.id,
+      occupied_trip.origin,
+      occupied_trip.destination,
+      occupied_trip.start_date,
+      occupied_trip.end_date
+    FROM trips occupied_trip
+    INNER JOIN (
+      SELECT trip_id, user_id FROM trip_members
+      UNION
+      SELECT id AS trip_id, user_id FROM trips
+    ) participant ON participant.trip_id = occupied_trip.id
+    WHERE participant.user_id IN (${placeholders})
+      AND occupied_trip.status != 'cancelada'
+      AND occupied_trip.start_date <= ?
+      AND occupied_trip.end_date >= ?
+      AND (? = 0 OR occupied_trip.id != ?)
+    ORDER BY occupied_trip.start_date ASC, occupied_trip.id ASC
+  `).bind(...userIds, endDate, startDate, excludeTripId, excludeTripId).all();
+
+  return json({
+    conflitos: (results || []).map((row) => ({
+      usuario_id: Number(row.user_id),
+      viagem_conflito: {
+        id: Number(row.id),
+        titulo: `${row.origin} → ${row.destination}`,
+        data_inicio: row.start_date,
+        data_fim: row.end_date,
+      },
+    })),
+  });
+});
 
 trips.get("/", async (c) => {
   const userId = c.get("userId");
@@ -305,19 +363,6 @@ trips.get("/users-for-members", async (c) => {
   let sql = `SELECT id, full_name, email, sector, position_title, manager_name, employee_id
              FROM users`;
   const binds = [];
-
-  if (startDate && endDate && endDate >= startDate) {
-    sql += ` AND NOT EXISTS (
-      SELECT 1
-      FROM trip_members occupied_member
-      INNER JOIN trips occupied_trip ON occupied_trip.id = occupied_member.trip_id
-      WHERE occupied_trip.start_date <= ?
-        AND occupied_trip.end_date >= ?
-        AND (occupied_trip.user_id = users.id OR occupied_member.user_id = users.id)
-        AND (? = 0 OR occupied_trip.id != ?)
-    )`;
-    binds.push(endDate, startDate, excludeTripId, excludeTripId);
-  }
 
   if (q) {
     sql +=
@@ -569,13 +614,9 @@ trips.get("/:id", async (c) => {
 trips.put("/:id", async (c) => {
   const id = Number(c.req.param("id"));
   const userId = c.get("userId");
-  const trip = await c.env.DB.prepare(
-    "SELECT * FROM trips WHERE id = ? AND user_id = ?",
-  )
-    .bind(id, userId)
-    .first();
+  const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
-  if (trip.status === "completed")
+  if (trip.status === "completed" && c.req.header("X-Trip-Edit-Mode") !== "1")
     return err("Viagem concluída não pode ser editada.");
 
   let body;

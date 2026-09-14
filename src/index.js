@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { auth } from './auth.js';
 import { authPassword } from './auth_password.js';
-import { trips } from './trips.js';
+import { trips, tripConflictRoutes } from './trips.js';
 import { files, tripFiles } from './files.js';
 import { profile } from './profile.js';
 import { notifications } from './notifications.js';
@@ -23,7 +23,7 @@ app.use(
   cors({
     origin: '*',
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Trip-Edit-Mode'],
   })
 );
 
@@ -38,6 +38,7 @@ app.get('/api/health', (c) =>
 auth.route('/password', authPassword);
 app.route('/api/auth', auth);
 app.route('/api/trips', trips);
+app.route('/api/viagens', tripConflictRoutes);
 app.route('/api/trips', tripFiles);
 app.route('/api/profile', profile);
 app.route('/api/notifications', notifications);

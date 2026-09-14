@@ -50,6 +50,9 @@ const params = new URLSearchParams(location.search);
 const tripId = Number(params.get("id"));
 const alertEl = document.getElementById("alert");
 const VALID_TRIP_VIEWS = new Set(["geral", "tarefa", "veiculos", "relatorio"]);
+const tripEditMode = new URLSearchParams(window.location.search).get("edit") === "1";
+if (tripEditMode) localStorage.setItem("cto_trip_edit_mode", "1");
+else localStorage.removeItem("cto_trip_edit_mode");
 
 
 let monitorMetricsTimer = null;
@@ -124,7 +127,9 @@ async function navigateTripView(view, { updateHistory = true } = {}) {
     renderTrip(trip);
     setupLocationMonitor(trip);
     const editBtn = document.getElementById("btn-edit-trip");
-    if (editBtn) editBtn.textContent = trip.status === "completed" ? "Editar checklist" : "Editar viagem";
+    if (editBtn) editBtn.textContent = trip.status === "completed"
+      ? (tripEditMode ? "Sair do modo edição" : "Editar viagem")
+      : "Editar viagem";
     setupPanelToggles();
     setupNewTaskMenu();
     updateTripView(nextView);
@@ -1013,9 +1018,15 @@ document.getElementById("btn-edit-trip")?.addEventListener("click", () => {
   const trip = window.__currentTrip;
   if (!trip) return;
   if (trip.status === "completed") {
-    document
-      .getElementById("task-form-wrap")
-      ?.scrollIntoView({ behavior: "smooth" });
+    if (tripEditMode) {
+      localStorage.removeItem("cto_trip_edit_mode");
+      const view = new URLSearchParams(window.location.search);
+      view.delete("edit");
+      window.location.href = `${window.location.pathname}?${view.toString()}`;
+      return;
+    }
+    localStorage.setItem("cto_trip_edit_mode", "1");
+    window.location.href = `trip-new.html?id=${tripId}&edit=1`;
     return;
   }
   window.location.href = `trip-new.html?id=${tripId}`;

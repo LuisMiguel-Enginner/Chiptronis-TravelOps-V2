@@ -2841,6 +2841,8 @@ html[data-theme="dark"] .alert-info .alert-icon {
 .vehicle-demand-status-text.is-completed { color: var(--success-600, var(--text-2)); text-decoration: line-through; }
 .status-badge { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; border: 1px solid transparent; border-radius: 999px; font-size: 0.75rem; font-weight: 500; line-height: 1.2; white-space: nowrap; }
 .status-badge svg { width: 0.9rem; height: 0.9rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.member-conflict-warning { display: block; margin-top: 0.2rem; color: var(--warning, #a16207); font-size: 0.72rem; font-weight: 600; line-height: 1.35; }
+.member-conflict-loading { display: block; margin-top: 0.2rem; color: var(--muted); font-size: 0.7rem; font-style: italic; }
 .status-pendente { color: var(--warning, #92400e); background: var(--warning-bg, #fef3c7); border-color: var(--border-warning, #fde68a); }
 .status-concluida { color: var(--success-600, #166534); background: var(--success-bg, #dcfce7); border-color: var(--border-success, #bbf7d0); }
 .vehicle-demand-delete { flex: 0 0 auto; width: 1.9rem; height: 1.9rem; min-height: 1.9rem; padding: 0; color: var(--text-2); background: transparent; border: 0; border-radius: var(--radius-sm); box-shadow: none; }

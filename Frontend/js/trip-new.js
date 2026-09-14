@@ -4,10 +4,12 @@ import { saveTripOffline } from "./db-offline.js";
 
 import { setLocationConsent } from "./location.js";
 import { searchCities } from "./cidades.js";
+import { debounce } from "./ui.js";
 
 const params = new URLSearchParams(location.search);
 const editTripId = Number(params.get("id")) || null;
 const isEditing = Boolean(editTripId);
+if (params.get("edit") === "1") localStorage.setItem("cto_trip_edit_mode", "1");
 const form = document.getElementById("trip-form");
 const alertEl = document.getElementById("alert");
 const btn = document.getElementById("btn-submit");
@@ -36,6 +38,9 @@ let selectedMemberSector = "";
 let carriedEquipment = new Map();
 let tripVehicles = [];
 let vehicleEditor = null;
+let memberConflicts = new Map();
+let memberConflictLoading = false;
+let memberConflictRequestId = 0;
 
 function renderTripVehicles() {
   if (!tripVehiclesList) return;
@@ -280,11 +285,59 @@ function renderMemberCheckboxes() {
       <input type="checkbox" value="${u.id}" ${selectedMembers.has(Number(u.id)) ? "checked" : ""}>
       <span class="member-checkbox-info compact-info">
         <strong>${escapeHtml(u.full_name)}</strong>
+        ${memberConflicts.get(Number(u.id)) ? `<span class="member-conflict-warning">⚠️ Em viagem "${escapeHtml(memberConflicts.get(Number(u.id)).titulo)}" de ${formatConflictDate(memberConflicts.get(Number(u.id)).data_inicio)} a ${formatConflictDate(memberConflicts.get(Number(u.id)).data_fim)}</span>` : ""}
+        ${memberConflictLoading && selectedMembers.has(Number(u.id)) && !memberConflicts.has(Number(u.id)) ? '<span class="member-conflict-loading">Verificando disponibilidade...</span>' : ""}
       </span>
     </label>`,
     )
     .join("");
 }
+
+function formatConflictDate(value) {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? String(value || "") : date.toLocaleDateString("pt-BR");
+}
+
+async function checkMemberConflicts() {
+  const startDate = normalizeIsoDate(startDateInput?.value || "");
+  const endDate = normalizeIsoDate(endDateInput?.value || "");
+  const userIds = [...selectedMembers.keys()].map(Number).filter(Boolean);
+  const requestId = ++memberConflictRequestId;
+
+  if (!startDate || !endDate || endDate < startDate || !userIds.length) {
+    memberConflicts = new Map();
+    memberConflictLoading = false;
+    renderMemberCheckboxes();
+    return;
+  }
+
+  memberConflictLoading = true;
+  renderMemberCheckboxes();
+  try {
+    const response = await api.checkTripMemberConflicts({
+      usuario_ids: userIds,
+      data_inicio: startDate,
+      data_fim: endDate,
+      viagem_id: editTripId || undefined,
+    });
+    if (requestId !== memberConflictRequestId) return;
+    const next = new Map();
+    for (const conflict of response.conflitos || []) {
+      if (!next.has(Number(conflict.usuario_id))) next.set(Number(conflict.usuario_id), conflict.viagem_conflito);
+    }
+    memberConflicts = next;
+  } catch {
+    if (requestId !== memberConflictRequestId) return;
+    memberConflicts = new Map();
+  } finally {
+    if (requestId === memberConflictRequestId) {
+      memberConflictLoading = false;
+      renderMemberCheckboxes();
+    }
+  }
+}
+
+const debouncedCheckMemberConflicts = debounce(checkMemberConflicts, 400);
 
 async function init() {
   currentUser = await mountShell({ active: "new" });
@@ -350,7 +403,7 @@ async function init() {
       const tripRes = await api.getTrip(editTripId);
       currentTrip = tripRes.trip;
       if (currentTrip) {
-        if (currentTrip.status === "completed") {
+        if (currentTrip.status === "completed" && params.get("edit") !== "1") {
           window.location.href = `trip.html?id=${editTripId}`;
           return;
         }
@@ -391,6 +444,7 @@ async function init() {
   syncTripDates();
   await refreshAvailableUsers();
   renderMemberCheckboxes();
+  await checkMemberConflicts();
   setEditMode();
 }
 
@@ -504,6 +558,10 @@ startDateInput?.addEventListener("change", syncTripDates);
 endDateInput?.addEventListener("change", syncTripDates);
 startDateInput?.addEventListener("change", refreshAvailableUsers);
 endDateInput?.addEventListener("change", refreshAvailableUsers);
+startDateInput?.addEventListener("input", debouncedCheckMemberConflicts);
+endDateInput?.addEventListener("input", debouncedCheckMemberConflicts);
+startDateInput?.addEventListener("change", debouncedCheckMemberConflicts);
+endDateInput?.addEventListener("change", debouncedCheckMemberConflicts);
 
 originInput?.addEventListener("input", () => renderCitySuggestions(originInput));
 destinationInput?.addEventListener("input", () => renderCitySuggestions(destinationInput));
@@ -545,6 +603,7 @@ membersCheckboxes?.addEventListener("change", (e) => {
   if (!user) return;
   if (checkbox.checked) selectedMembers.set(id, user);
   else selectedMembers.delete(id);
+  debouncedCheckMemberConflicts();
 });
 
 form?.addEventListener("submit", async (e) => {
@@ -596,7 +655,7 @@ form?.addEventListener("submit", async (e) => {
       setLocationConsent(tripId, true);
     }
 
-    window.location.href = `trip.html?id=${res.trip.id}`;
+    window.location.href = `trip.html?id=${res.trip.id}${res.trip.status === "completed" ? "&edit=1" : ""}`;
 
   } catch (err) {
     showAlert(alertEl, err.message);

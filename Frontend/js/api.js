@@ -68,6 +68,9 @@ async function request(path, options = {}) {
   const token = getToken();
 
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (localStorage.getItem("cto_trip_edit_mode") === "1") {
+    headers.set("X-Trip-Edit-Mode", "1");
+  }
 
   if (options.json !== undefined) {
     headers.set("Content-Type", "application/json");
@@ -192,6 +195,8 @@ export const api = {
     const qs = params.toString() ? `?${params.toString()}` : "";
     return request(`/trips/users-for-members${qs}`);
   },
+  checkTripMemberConflicts: (body) =>
+    request("/viagens/check-conflitos", { method: "POST", json: body }),
 
   workTypes: (opts = {}) => {
     const qs = [];
@@ -341,7 +346,10 @@ export const api = {
     const token = getToken();
     const res = await fetch(`${API_BASE}/trips/${id}/tasks`, {
       method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(localStorage.getItem("cto_trip_edit_mode") === "1" ? { "X-Trip-Edit-Mode": "1" } : {}),
+      },
       body: fd,
     });
     const data = await res.json();

@@ -44,6 +44,9 @@ function parseTaskResponsibles(task) {
 }
 
 function taskIsCompleted(task) {
+  const explicitStatus = String(task.status || task.task_status || "").trim().toLowerCase();
+  if (["concluida", "concluído", "concluido", "completed", "done"].includes(explicitStatus)) return true;
+  if (["pendente", "pending", "incompleta", "incomplete"].includes(explicitStatus)) return false;
   return !String(task.pending_items || "").trim();
 }
 
@@ -101,22 +104,26 @@ function buildTripReportModel(trip) {
     }
     const days = [...byDate.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, dateTasks]) => ({
-        date,
-        slots: dateTasks.map((task) => ({
-          start: task.start_time,
-          end: task.end_time,
-          workType: task.work_type,
-        })),
-        timeSlots: dateTasks
-          .map((task) =>
-            task.start_time && task.end_time
-              ? `${task.start_time} – ${task.end_time}`
-              : task.start_time || task.end_time || "",
-          )
-          .filter(Boolean)
-          .join(" / "),
-      }));
+      .map(([date, dateTasks]) => {
+        const orderedTasks = [...dateTasks].sort((a, b) =>
+          String(a.start_time || "").localeCompare(String(b.start_time || "")),
+        );
+        const lunchTask = orderedTasks.find((task) =>
+          /^(refeicao|almoço|almoco)$/i.test(String(task.work_type || "").trim()),
+        );
+        const firstTask = orderedTasks.find((task) => task.start_time) || {};
+        const lastTask = [...orderedTasks].reverse().find((task) => task.end_time) || {};
+        return {
+          date,
+          mainSlots: [
+            firstTask.start_time ? firstTask.start_time : null,
+            lunchTask?.start_time || lunchTask?.end_time
+              ? `${lunchTask.start_time || "—"} – ${lunchTask.end_time || "—"}`
+              : null,
+            lastTask.end_time ? lastTask.end_time : null,
+          ].filter(Boolean),
+        };
+      });
     return {
       fullName: user.fullName,
       tasksCompleted: user.tasks.filter(taskIsCompleted).length,
@@ -306,7 +313,7 @@ function renderDataHorarioUsuario(userSummaries) {
         ${u.days.map((d) => `
         <div class="day-schedule">
           <span class="day-schedule__date">${formatDate(d.date)} —</span>
-          <span class="day-schedule__slots">${d.timeSlots || "Sem horários registrados"}</span>
+          <span class="day-schedule__slots">${d.mainSlots.join(" / ") || "Sem horários registrados"}</span>
         </div>`).join("") || `<div class="empty">Nenhum horário registrado.</div>`}
       </div>
     </div>`).join("")}
@@ -495,7 +502,9 @@ function longField(label, value, tone = "") {
 
 function formatDate(d) {
   if (!d) return "—";
-  const date = new Date(d);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(d))
+    ? new Date(`${d}T00:00:00`)
+    : new Date(d);
   if (Number.isNaN(date.getTime())) return esc(String(d));
   return date.toLocaleDateString("pt-BR");
 }
@@ -775,6 +784,10 @@ function reportCSS() {
     font-weight: 600;
     letter-spacing: 0.01em;
   }
+  .day-schedule__main-slots { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 4px 0 6px; color: #1d4ed8; font-weight: 600; }
+  .day-schedule__main-slot { white-space: nowrap; }
+  .day-schedule__task-slots { display: flex; flex-direction: column; gap: 3px; padding-left: 12px; color: #64748b; font-size: 13px; line-height: 1.45; }
+  .day-schedule__task-slot strong { color: #475569; }
   .task-card {
     background: #ffffff;
     border: 1px solid #d1d5db;
@@ -1303,6 +1316,10 @@ body {
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+.day-schedule__main-slots { display: flex; flex-wrap: wrap; gap: 5pt 12pt; margin: 3pt 0 5pt; color: #1d4ed8; font-weight: 600; }
+.day-schedule__main-slot { white-space: nowrap; }
+.day-schedule__task-slots { display: flex; flex-direction: column; gap: 2pt; padding-left: 9pt; color: #64748b; font-size: 9pt; line-height: 1.4; }
+.day-schedule__task-slot strong { color: #475569; }
 
 /* ===== TASK CARDS ===== */
 .task-card {

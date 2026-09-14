@@ -2069,7 +2069,9 @@ export function renderTrip(t) {
   }
 
   prepareTaskForm(t, { clearDate: false });
-  setReadOnly(false);
+  const completedReadOnly = t.status === "completed" &&
+    new URLSearchParams(window.location.search).get("edit") !== "1";
+  setReadOnly(completedReadOnly);
   window.__currentTrip = t;
 
   const alertEl = document.getElementById("alert");
