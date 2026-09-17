@@ -642,6 +642,10 @@ trips.put("/:id", async (c) => {
   const priority = ["low", "normal", "high"].includes(body.priority)
     ? body.priority
     : trip.priority || "normal";
+  const status = computeStatus({ ...trip, start_date, end_date });
+  const citiesChanged =
+    String(trip.origin ?? "") !== origin ||
+    String(trip.destination ?? "") !== destination;
   const equipmentChecklist = Array.isArray(body.equipment_checklist)
     ? body.equipment_checklist
         .map((item) => ({
