@@ -32,6 +32,34 @@ function validarAno(ano) {
   return /^\d{4}$/.test(valor) && Number(valor) >= 1900 && Number(valor) <= atual + 1;
 }
 
+<<<<<<< HEAD
+=======
+async function sincronizarVeiculoDaDemanda(db, tripId, vehicle, createdBy) {
+  const montadora = String(vehicle.montadora || '').trim();
+  const modelo = String(vehicle.modelo || '').trim();
+  const versaoModelo = String(vehicle.versao_modelo || '').trim() || null;
+  const ano = String(vehicle.ano || '').trim() || null;
+  const placa = formatarPlaca(vehicle.placa) || null;
+  const existente = await db.prepare(`
+    SELECT id FROM vehicles
+    WHERE trip_id = ?
+      AND montadora = ?
+      AND modelo = ?
+      AND IFNULL(versao_modelo, '') = IFNULL(?, '')
+      AND IFNULL(ano, '') = IFNULL(?, '')
+      AND IFNULL(placa, '') = IFNULL(?, '')
+    LIMIT 1
+  `).bind(tripId, montadora, modelo, versaoModelo, ano, placa).first();
+  if (existente) return existente.id;
+
+  const result = await db.prepare(`
+    INSERT INTO vehicles (trip_id, montadora, modelo, versao_modelo, ano, placa, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(tripId, montadora, modelo, versaoModelo, ano, placa, createdBy).run();
+  return result.meta.last_row_id;
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 async function atualizarStatusDemanda(db, demandaId) {
   const { results: atividades } = await db.prepare(`
     SELECT da.id, da.status FROM demanda_atividades da
@@ -181,7 +209,49 @@ export async function fetchDemandasViagem(db, viagemId) {
       veiculos: veiculosPorDemanda.get(Number(d.id)) || [],
     }));
 
+<<<<<<< HEAD
     return demandasFormatadas;
+=======
+    const { results: vehicleDemandRows } = await db.prepare(`
+      SELECT vd.id, vd.vehicle_id, vd.trip_id, vd.tipo_projeto, vd.tipo_trabalho,
+             vd.atividade_modelo_id, vd.atividade, vd.prioridade, vd.status, vd.created_by, vd.created_at,
+             v.montadora, v.modelo, v.versao_modelo, v.ano, v.placa,
+             u.full_name AS created_by_name
+      FROM vehicle_demands vd
+      INNER JOIN vehicles v ON v.id = vd.vehicle_id
+      LEFT JOIN users u ON u.id = vd.created_by
+      WHERE vd.trip_id = ?
+      ORDER BY vd.created_at DESC, vd.id DESC
+    `).bind(viagemId).all();
+
+    const vehicleDemandFormatadas = (vehicleDemandRows || []).map((row) => ({
+      id: `vehicle-demand-${row.id}`,
+      viagem_id: row.trip_id,
+      tipo_projeto: String(row.tipo_projeto || '').trim() || 'Sem projeto',
+      tipo_trabalho: String(row.tipo_trabalho || '').trim(),
+      status: row.status || 'pendente',
+      criado_por: row.created_by,
+      criado_em: row.created_at,
+      criado_nome: row.created_by_name || 'Líder',
+      veiculos: [{
+        id: Number(row.vehicle_id),
+        montadora: row.montadora,
+        modelo: row.modelo,
+        versao_modelo: row.versao_modelo,
+        ano: row.ano,
+        placa: row.placa,
+        atividades: [{
+          id: Number(row.id),
+          atividade_modelo_id: row.atividade_modelo_id,
+          atividade_descricao: row.atividade,
+          prioridade: Number(row.prioridade || 1),
+          status: row.status || 'pendente',
+        }],
+      }],
+    }));
+
+    return [...demandasFormatadas, ...vehicleDemandFormatadas];
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   } catch (e) {
     console.error('Erro ao buscar demandas:', e);
     return [];
@@ -293,6 +363,11 @@ demandas.post('/viagem/:viagemId', async (c) => {
     ).run();
     const veiculoId = resultVeiculo.meta.last_row_id;
 
+<<<<<<< HEAD
+=======
+    await sincronizarVeiculoDaDemanda(c.env.DB, viagemId, v, userId);
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     const atividades = Array.isArray(v.atividades) ? v.atividades : [];
     for (const a of atividades) {
       await c.env.DB.prepare(
@@ -394,6 +469,17 @@ demandas.put('/veiculo/:veiculoId', async (c) => {
     WHERE id = ?
   `).bind(montadora, modelo, versaoModelo || null, ano || null, placa, veiculoId).run();
 
+<<<<<<< HEAD
+=======
+  await sincronizarVeiculoDaDemanda(c.env.DB, Number(veiculo.viagem_id), {
+    montadora,
+    modelo,
+    versao_modelo: versaoModelo,
+    ano,
+    placa,
+  }, userId);
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const tipoProjeto = String(body.tipo_projeto || veiculo.tipo_projeto || '').trim();
   const tipoTrabalho = String(body.tipo_trabalho || '').trim();
   if (tipoProjeto) {

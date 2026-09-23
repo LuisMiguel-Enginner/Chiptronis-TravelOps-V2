@@ -5,6 +5,10 @@ import {
   statusLabel,
 } from './helpers.js';
 import { fetchDemandasViagem } from './demandas.js';
+<<<<<<< HEAD
+=======
+import { normalizePlate, normalizeVehicleField } from './vehicle-identity.js';
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 export async function autoUpdateTripStatus(db, tripId) {
   const trip = await db
@@ -165,7 +169,106 @@ function parseEquipmentChecklist(value) {
   }
 }
 
+<<<<<<< HEAD
 export function formatTrip(trip, checklist = null, expenses = [], attachments = [], members = [], tasks = [], demandas = []) {
+=======
+function normalizeVehicleKey(vehicle = {}) {
+  const atividades = Array.isArray(vehicle.atividades) ? vehicle.atividades : [];
+  const atividadeKey = atividades
+    .map((atividade) => {
+      const atividadeId = atividade?.id ?? atividade?.atividade_modelo_id ?? '';
+      const descricao = atividade?.atividade_descricao ?? atividade?.descricao ?? '';
+      const prioridade = atividade?.prioridade ?? '';
+      const status = atividade?.status ?? '';
+      return `${atividadeId}|${descricao}|${prioridade}|${status}`;
+    })
+    .sort()
+    .join(';');
+
+  return [
+    vehicle.id ?? '',
+    vehicle.montadora ?? '',
+    vehicle.modelo ?? '',
+    vehicle.versao_modelo ?? '',
+    vehicle.ano ?? '',
+    vehicle.placa ?? '',
+    atividadeKey,
+  ].join('|');
+}
+
+function mergeDemandasLists(...sources) {
+  const merged = new Map();
+
+  for (const source of sources) {
+    const demandas = Array.isArray(source) ? source : [];
+
+    for (const demanda of demandas) {
+      if (!demanda || typeof demanda !== 'object') continue;
+
+      const demandaId = Number(demanda.id);
+      const key = Number.isFinite(demandaId) && demandaId > 0
+        ? `id:${demandaId}`
+        : `sig:${[
+            demanda.tipo_projeto ?? '',
+            demanda.tipo_trabalho ?? '',
+            demanda.status ?? '',
+            (Array.isArray(demanda.veiculos) ? demanda.veiculos : [])
+              .map((vehicle) => normalizeVehicleKey(vehicle))
+              .sort()
+              .join('||'),
+          ].join('|')}`;
+
+      const existing = merged.get(key);
+      if (!existing) {
+        merged.set(key, {
+          ...demanda,
+          veiculos: Array.isArray(demanda.veiculos) ? [...demanda.veiculos] : [],
+        });
+        continue;
+      }
+
+      const vehicleMap = new Map();
+      for (const vehicle of [...(existing.veiculos || []), ...(demanda.veiculos || [])]) {
+        const vehicleKey = normalizeVehicleKey(vehicle);
+        const current = vehicleMap.get(vehicleKey) || { ...vehicle, atividades: Array.isArray(vehicle.atividades) ? [...vehicle.atividades] : [] };
+
+        if (!vehicleMap.has(vehicleKey)) {
+          vehicleMap.set(vehicleKey, current);
+          continue;
+        }
+
+        const atividadesMap = new Map();
+        for (const atividade of [...(current.atividades || []), ...(vehicle.atividades || [])]) {
+          const atividadeKey = [
+            atividade?.id ?? atividade?.atividade_modelo_id ?? '',
+            atividade?.atividade_descricao ?? atividade?.descricao ?? '',
+            atividade?.prioridade ?? '',
+            atividade?.status ?? '',
+          ].join('|');
+
+          if (!atividadesMap.has(atividadeKey)) {
+            atividadesMap.set(atividadeKey, { ...atividade });
+          }
+        }
+
+        current.atividades = [...atividadesMap.values()];
+        vehicleMap.set(vehicleKey, current);
+      }
+
+      existing.veiculos = [...vehicleMap.values()];
+      existing.tipo_projeto = existing.tipo_projeto || demanda.tipo_projeto || '';
+      existing.tipo_trabalho = existing.tipo_trabalho || demanda.tipo_trabalho || '';
+      existing.status = existing.status || demanda.status || 'pendente';
+      existing.criado_nome = existing.criado_nome || demanda.criado_nome || '';
+      if (!existing.criado_em && demanda.criado_em) existing.criado_em = demanda.criado_em;
+    }
+  }
+
+  return [...merged.values()];
+}
+
+export function formatTrip(trip, checklist = null, expenses = [], attachments = [], members = [], tasks = [], demandas = [], vehicles = []) {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const taskList = tasks || [];
   return {
     id: trip.id,
@@ -204,6 +307,10 @@ export function formatTrip(trip, checklist = null, expenses = [], attachments = 
     members: (members || []).map(formatMember),
     tasks: taskList,
     demandas: demandas || [],
+<<<<<<< HEAD
+=======
+    vehicles: vehicles || [],
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     expenses: (expenses || []).map((e) => ({
       id: e.id,
       description: e.description,
@@ -229,7 +336,11 @@ export async function fetchTripFull(db, tripId, userId) {
     .first();
   if (!trip) return null;
 
+<<<<<<< HEAD
   const [checklist, expenses, attachments, membersResult, taskRowsResult, demandasList] = await Promise.all([
+=======
+  const [checklist, expenses, attachments, membersResult, taskRowsResult, demandasList, vehiclesResult] = await Promise.all([
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     db.prepare('SELECT * FROM trip_checklists WHERE trip_id = ?').bind(tripId).first(),
     db.prepare('SELECT * FROM expenses WHERE trip_id = ? ORDER BY id ASC').bind(tripId).all(),
     db.prepare('SELECT * FROM attachments WHERE trip_id = ? ORDER BY id ASC').bind(tripId).all(),
@@ -272,8 +383,123 @@ export async function fetchTripFull(db, tripId, userId) {
       }
     })(),
     fetchDemandasViagem(db, tripId),
+<<<<<<< HEAD
   ]);
 
+=======
+    (async () => {
+      try {
+        const { results } = await db.prepare(`
+          SELECT v.*, u.full_name AS created_by_name,
+                 vd.id AS demand_id, vd.tipo_projeto AS demand_tipo_projeto,
+                 vd.tipo_trabalho AS demand_tipo_trabalho,
+                 vd.atividade_modelo_id AS demand_atividade_modelo_id,
+                 vd.atividade AS demand_atividade, vd.prioridade AS demand_prioridade,
+                 vd.status AS demand_status, vd.created_at AS demand_created_at,
+                 vd.created_by AS demand_created_by, du.full_name AS demand_created_by_name
+          FROM vehicles v
+          LEFT JOIN users u ON u.id = v.created_by
+          LEFT JOIN vehicle_demands vd ON vd.vehicle_id = v.id
+          LEFT JOIN users du ON du.id = vd.created_by
+          WHERE v.trip_id = ?
+          ORDER BY v.id ASC, vd.prioridade ASC, vd.id ASC
+        `).bind(tripId).all();
+        const byVehicle = new Map();
+        for (const row of results || []) {
+          if (!byVehicle.has(row.id)) {
+            byVehicle.set(row.id, {
+              id: row.id,
+              trip_id: row.trip_id,
+              montadora: row.montadora,
+              modelo: row.modelo,
+              versao_modelo: row.versao_modelo,
+              ano: row.ano,
+              placa: row.placa,
+              created_by: row.created_by,
+              created_at: row.created_at,
+              created_by_name: row.created_by_name,
+              demands: [],
+            });
+          }
+          if (row.demand_id) {
+            byVehicle.get(row.id).demands.push({
+              id: row.demand_id,
+              vehicle_id: row.id,
+              trip_id: tripId,
+              tipo_projeto: row.demand_tipo_projeto,
+              tipo_trabalho: row.demand_tipo_trabalho,
+              atividade_modelo_id: row.demand_atividade_modelo_id,
+              atividade: row.demand_atividade,
+              prioridade: row.demand_prioridade,
+              status: row.demand_status,
+              created_by: row.demand_created_by,
+              created_at: row.demand_created_at,
+              created_by_name: row.demand_created_by_name,
+            });
+          }
+        }
+        return [...byVehicle.values()];
+      } catch {
+        return [];
+      }
+    })(),
+  ]);
+
+  const normalizeDemandMatchValue = (value, field = '') =>
+    field === 'placa' ? normalizePlate(value) : normalizeVehicleField(value);
+
+  const vehicleDemands = (vehiclesResult || []).flatMap((vehicle) =>
+    (vehicle.demands || []).map((demand) => {
+      const projectMatches = (legacyDemand) => normalizeDemandMatchValue(legacyDemand.tipo_projeto) === normalizeDemandMatchValue(demand.tipo_projeto);
+      const activityMatches = (legacyVehicle) => (legacyVehicle.atividades || []).some((activity) =>
+        (String(activity.atividade_modelo_id || '') === String(demand.atividade_modelo_id || '') && demand.atividade_modelo_id)
+        || normalizeDemandMatchValue(activity.atividade_descricao) === normalizeDemandMatchValue(demand.atividade)
+      );
+      const vehicleMatches = (legacyVehicle) => {
+        const sameVehicle = [
+          'montadora',
+          'modelo',
+          'versao_modelo',
+          'ano',
+          'placa',
+        ].every((field) => normalizeDemandMatchValue(legacyVehicle[field], field) === normalizeDemandMatchValue(vehicle[field], field));
+        return sameVehicle && activityMatches(legacyVehicle);
+      };
+      const matchingLegacyDemand = (demandasList || []).find((legacyDemand) => {
+        if (!projectMatches(legacyDemand)) return false;
+        return (legacyDemand.veiculos || []).some((legacyVehicle) => {
+          return vehicleMatches(legacyVehicle);
+        });
+      }) || (demandasList || []).find((legacyDemand) => projectMatches(legacyDemand)
+        && (legacyDemand.veiculos || []).some((legacyVehicle) => activityMatches(legacyVehicle)));
+
+      return {
+        id: demand.id,
+        tipo_projeto: demand.tipo_projeto || '',
+        tipo_trabalho: demand.tipo_trabalho || matchingLegacyDemand?.tipo_trabalho || '',
+        status: demand.status || 'pendente',
+        criado_nome: demand.created_by_name || 'Líder',
+        criado_em: demand.created_at || null,
+        veiculos: [{
+          id: vehicle.id,
+          montadora: vehicle.montadora,
+          modelo: vehicle.modelo,
+          versao_modelo: vehicle.versao_modelo,
+          ano: vehicle.ano,
+          placa: vehicle.placa,
+          atividades: [{
+            id: demand.id,
+            atividade_modelo_id: demand.atividade_modelo_id,
+            atividade_descricao: demand.atividade,
+            prioridade: demand.prioridade,
+            status: demand.status || 'pendente',
+          }],
+        }],
+      };
+    }),
+  );
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   let members = membersResult;
 
   try {
@@ -282,15 +508,47 @@ export async function fetchTripFull(db, tripId, userId) {
       .bind(trip.user_id)
       .first();
     if (owner) {
+<<<<<<< HEAD
       const exists = (members || []).some((m) => Number(m.user_id || m.id) === Number(owner.id));
       if (!exists) {
+=======
+      let ownerManagerName = owner.manager_name || null;
+      if (!ownerManagerName && owner.sector) {
+        const leaderRow = await db
+          .prepare(
+            `SELECT full_name
+             FROM users
+             WHERE sector = ?
+               AND LOWER(REPLACE(REPLACE(position_title, 'í', 'i'), 'Í', 'I')) = 'lider'
+             LIMIT 1`
+          )
+          .bind(owner.sector)
+          .first();
+        ownerManagerName = leaderRow?.full_name || ownerManagerName;
+      }
+
+      const ownerMemberIndex = (members || []).findIndex(
+        (m) => Number(m.user_id || m.id) === Number(owner.id),
+      );
+
+      if (ownerMemberIndex >= 0) {
+        members[ownerMemberIndex] = {
+          ...members[ownerMemberIndex],
+          manager_name: ownerManagerName || members[ownerMemberIndex].manager_name || null,
+        };
+      } else {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         const ownerMember = {
           id: null,
           trip_id: tripId,
           user_id: owner.id,
           full_name: owner.full_name,
           sector: owner.sector || null,
+<<<<<<< HEAD
           manager_name: owner.manager_name || null,
+=======
+          manager_name: ownerManagerName,
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
           position_title: owner.position_title || null,
           employee_id: owner.employee_id || null,
         };
@@ -384,7 +642,20 @@ export async function fetchTripFull(db, tripId, userId) {
     }
   }
 
+<<<<<<< HEAD
   return formatTrip(trip, checklist, expenses.results || [], attachments.results || [], members, tasks, demandasList);
+=======
+  return formatTrip(
+    trip,
+    checklist,
+    expenses.results || [],
+    attachments.results || [],
+    members,
+    tasks,
+    mergeDemandasLists(demandasList || [], vehicleDemands || []),
+    vehiclesResult,
+  );
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 
 export async function saveTripMembers(db, tripId, memberUserIds = []) {

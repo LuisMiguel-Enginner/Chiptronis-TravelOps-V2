@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -11,6 +12,10 @@ const LOGO_MARK = readFileSync(
   path.resolve(__dirname, "..", "Frontend", "assets", "logo-mark.svg"),
   "utf8",
 );
+=======
+const LOGO_FULL = "<strong>Chiptronic</strong> <span>TravelOps</span>";
+const LOGO_MARK = "<strong>CT</strong>";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 const SYSTEM_NAME = "Chiptronic TravelOps";
 

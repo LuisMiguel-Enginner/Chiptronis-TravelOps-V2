@@ -16,12 +16,19 @@
   <div class="app-shell">
     <header class="topbar" id="topbar"></header>
     <main class="container">
+<<<<<<< HEAD
       <div class="page-header trip-page-header">
         <div class="trip-page-header-title hidden-title">
+=======
+      <div class="page-header trip-page-header trip-shell-header">
+        <a href="index.html" class="btn btn-secondary trip-back-button" aria-label="Voltar ao dashboard">← <span>Voltar</span></a>
+        <div class="trip-page-header-title">
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
           <h1 id="trip-title">Viagem</h1>
           <p id="trip-subtitle" class="text-muted">Carregando…</p>
         </div>
         <div class="form-actions mb-0">
+<<<<<<< HEAD
           <span id="trip-status" class="hidden-title-elem"></span>
           <button type="button" class="btn btn-secondary" id="btn-trip-history" aria-label="Ver histórico da viagem" title="Ver histórico da viagem">?</button>
           <button type="button" class="btn btn-secondary" id="btn-trip-report" disabled title="O relatório só pode ser gerado após a conclusão da viagem">Gerar relatório</button>
@@ -31,12 +38,33 @@
         </div>
       </div>
 
+=======
+          <span id="trip-status"></span>
+          <button type="button" class="btn btn-secondary" id="btn-trip-history" aria-label="Ver histórico da viagem" title="Ver histórico da viagem">?</button>
+          <button type="button" class="btn btn-secondary" id="btn-edit-trip">Editar viagem</button>
+          <button type="button" class="btn btn-danger" id="btn-delete-trip">Excluir viagem</button>
+        </div>
+      </div>
+
+      <nav class="trip-tabs" id="trip-tabs" aria-label="Seções da viagem">
+        <a href="?id=&view=geral" data-trip-view="geral">Dados gerais</a>
+        <a href="?id=&view=tarefa" data-trip-view="tarefa">Adicionar tarefa</a>
+        <a href="?id=&view=veiculos" data-trip-view="veiculos" id="trip-vehicles-tab">Veículos</a>
+        <a href="?id=&view=relatorio" data-trip-view="relatorio">Relatório <span class="trip-tab-indicator hidden-fields" aria-label="Pendência"></span></a>
+      </nav>
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       <div id="alert" class="alert alert-error hidden"></div>
       <div id="overdue-banner" class="alert alert-warning hidden">
         Esta viagem encerrou e o relatório ainda não foi preenchido.
       </div>
 
+<<<<<<< HEAD
       <div class="stack">
+=======
+      <div class="stack" id="content">
+        <section class="trip-view" data-trip-panel="geral">
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         <div class="trip-detail-card" id="trip-detail-card">
           <div class="trip-detail-header">
             <div class="trip-detail-route">
@@ -63,8 +91,11 @@
                 <div class="tds-label">Integrantes</div>
                 <div class="tds-value" id="trip-members"></div>
               </div>
+<<<<<<< HEAD
             </div>
             <div class="tds-row tds-row-reason">
+=======
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
               <div class="tds-item tds-item-grow">
                 <div class="tds-label">Motivo</div>
                 <div class="tds-value" id="trip-reason"></div>
@@ -80,6 +111,7 @@
             <div class="tdb-value tdb-equipment" id="trip-equipment"></div>
           </div>
         </div>
+<<<<<<< HEAD
 
         <div class="panel">
           <div class="panel-header">
@@ -88,6 +120,20 @@
               <span class="text-muted" style="font-size:0.85rem">Registre as tarefas realizadas</span>
             </div>
             <button type="button" class="panel-toggle collapsed" aria-label="Minimizar/Maximizar" title="Minimizar/Maximizar">▼</button>
+=======
+        </section>
+
+        <section class="trip-view" data-trip-panel="tarefa">
+        <div class="panel" id="tasks-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Tarefas realizadas</h2>
+              <span class="text-muted" style="font-size:0.85rem">Registre as tarefas do dia</span>
+            </div>
+            <div class="form-actions mb-0">
+              <button type="button" class="panel-toggle collapsed" aria-label="Minimizar/Maximizar" title="Minimizar/Maximizar">▼</button>
+            </div>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
           </div>
           <div class="panel-body panel-content collapsed">
             <div class="task-filters">
@@ -146,7 +192,11 @@
         </div>
 
         <div class="panel">
+<<<<<<< HEAD
           <div id="task-form-wrap" class="task-form-wrap panel-body">
+=======
+          <div id="task-form-wrap" class="task-form-wrap panel-body hidden-fields">
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
             <div class="panel-subheader">
               <h3 id="task-form-title">Trabalhos do dia</h3>
               <button type="button" class="panel-toggle" aria-label="Minimizar/Maximizar" title="Minimizar/Maximizar">▼</button>
@@ -180,6 +230,23 @@
                      <label>Responsáveis pela tarefa</label>
                      <div id="responsible_id" class="responsible-list" aria-label="Responsáveis pela tarefa"></div>
                    </div>
+<<<<<<< HEAD
+=======
+                  <div id="demand-vehicle-fields" class="form-grid two hidden-fields">
+                    <div>
+                      <label for="demanda_veiculo_id">Veículo da demanda</label>
+                      <select id="demanda_veiculo_id">
+                        <option value="">Sem veículo de demanda</option>
+                      </select>
+                    </div>
+                    <div id="demand-activity-field" class="hidden-fields">
+                      <label for="demanda_atividade_id">Demanda do veículo</label>
+                      <select id="demanda_atividade_id">
+                        <option value="">Selecione uma demanda</option>
+                      </select>
+                    </div>
+                  </div>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
                   <div id="vehicle-detail-fields" class="form-grid five hidden-fields">
                     <div>
                       <label for="montadora">Montadora</label>
@@ -225,7 +292,11 @@
                 <label for="summary">Resumo do que foi feito *</label>
                 <textarea id="summary" required placeholder="Descreva a atividade realizada…" class="textarea-expanded" style="min-height: 260px;"></textarea>
               </div>
+<<<<<<< HEAD
               <div>
+=======
+              <div id="pending-items-field">
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
                 <label for="pending_items">Pendências neste trabalho</label>
                 <textarea id="pending_items" placeholder="O que ficou pendente neste mesmo trabalho…" class="textarea-expanded" style="min-height: 260px;"></textarea>
               </div>
@@ -236,17 +307,51 @@
             </form>
           </div>
         </div>
+<<<<<<< HEAD
 
         <div id="demandas-panel-container"></div>
 
         <div id="btn-demanda-lider-wrap" style="margin-bottom:16px;"></div>
+=======
+        </section>
+
+        <section class="trip-view" data-trip-panel="veiculos">
+          <div id="trip-vehicles-container"></div>
+        </section>
+
+        <section class="trip-view" data-trip-panel="relatorio">
+          <div class="panel trip-report-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Relatório da viagem</h2>
+                <p class="text-muted">Visualize o relatório antes de exportar.</p>
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-trip-report" disabled>Gerar PDF</button>
+            </div>
+            <div class="panel-body">
+              <div id="trip-report-preview" class="trip-report-preview">
+                <div class="empty-state">Carregando relatório...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div id="btn-demanda-lider-wrap" class="hidden-fields" style="margin-bottom:16px;"></div>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       </div>
     </main>
   </div>
   <script src="js/config.js"></script>
+<<<<<<< HEAD
   <script src="js/report-logos-inline.js?v=49"></script>
   <script src="js/trip-report-frontend.js?v=49"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script type="module" src="js/trip-detail.js?v=49"></script>
+=======
+  <script src="js/report-logos-inline.js?v=48"></script>
+  <script src="js/trip-report-frontend.js?v=48"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script type="module" src="js/trip-detail.js?v=48"></script>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 </body>
 </html>

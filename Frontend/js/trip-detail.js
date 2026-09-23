@@ -1,16 +1,28 @@
 import { api, hideAlert, showAlert } from "./api.js";
+<<<<<<< HEAD
 import { renderQuadroDemandasIntegrante } from "./demandas.js";
+=======
+import { renderTripVehicles } from "./trip-vehicles.js?v=5";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 import { mountShell } from "./layout.js";
 import {
   fillWorkTypes,
   prepareTaskForm,
   renderTrip,
   taskFormPayload,
+<<<<<<< HEAD
+=======
+  configureTaskEntryMode,
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   validateTaskTimeAvailability,
   hasPersonalTaskConflict,
   hasConfirmedPersonalTaskConflict,
   setupPanelToggles,
+<<<<<<< HEAD
 } from "./trip-render.js?v=2";
+=======
+} from "./trip-render.js?v=16";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 import { confirmDialog } from "./ui.js";
 import {
   getLocationConsent,
@@ -48,10 +60,165 @@ function hasTaskEveryTripDay(trip) {
 const params = new URLSearchParams(location.search);
 const tripId = Number(params.get("id"));
 const alertEl = document.getElementById("alert");
+<<<<<<< HEAD
+=======
+const VALID_TRIP_VIEWS = new Set(["geral", "tarefa", "veiculos", "relatorio"]);
+const tripEditMode = new URLSearchParams(window.location.search).get("edit") === "1";
+if (tripEditMode) localStorage.setItem("cto_trip_edit_mode", "1");
+else localStorage.removeItem("cto_trip_edit_mode");
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 
 let monitorMetricsTimer = null;
 
+<<<<<<< HEAD
+=======
+function currentTripView() {
+  const view = new URLSearchParams(window.location.search).get("view") || "geral";
+  return VALID_TRIP_VIEWS.has(view) ? view : "geral";
+}
+
+function setTripViewUrl(view, replace = false) {
+  const next = new URLSearchParams(window.location.search);
+  next.set("id", String(tripId));
+  next.set("view", view);
+  const url = `${window.location.pathname}?${next.toString()}`;
+  window.history[replace ? "replaceState" : "pushState"]({ view }, "", url);
+}
+
+function updateTripView(view) {
+  document.querySelectorAll("[data-trip-panel]").forEach((panel) => {
+    panel.classList.toggle("hidden-fields", panel.dataset.tripPanel !== view);
+  });
+  document.querySelectorAll("[data-trip-view]").forEach((tab) => {
+    const active = tab.dataset.tripView === view;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-current", active ? "page" : "false");
+  });
+  const leaderDemandButton = document.getElementById("btn-demanda-lider-wrap");
+  if (leaderDemandButton) leaderDemandButton.classList.toggle("hidden-fields", view !== "veiculos");
+  const vehiclesTab = document.getElementById("trip-vehicles-tab");
+  const user = window.__currentUser || {};
+  const managesDemands = Boolean(user.is_admin || user.is_admin_master || user.is_sector_leader || String(user.position_title || '').trim().toLowerCase() === 'líder');
+  if (vehiclesTab) vehiclesTab.textContent = managesDemands ? "Veículos e fornecer demandas" : "Veículos";
+}
+
+function updateReportIndicator(trip) {
+  const indicator = document.querySelector(".trip-tab-indicator");
+  if (!indicator) return;
+  const pending = trip?.status === "completed" && !trip?.checklist?.is_complete;
+  indicator.classList.toggle("hidden-fields", !pending);
+}
+
+function renderReportPreview(trip) {
+  const preview = document.getElementById("trip-report-preview");
+  const button = document.getElementById("btn-trip-report");
+  if (!preview || !button) return;
+  const canReport = trip?.status === "completed";
+  button.disabled = !canReport;
+  button.title = canReport
+    ? "Gerar relatório em PDF"
+    : "O relatório só pode ser gerado após a conclusão da viagem";
+  if (typeof window.TripReport?.buildAndRender !== "function") {
+    preview.innerHTML = '<div class="empty-state">O relatório ainda está carregando.</div>';
+    return;
+  }
+  const html = window.TripReport.buildAndRender(trip);
+  preview.innerHTML = `<iframe title="Pré-visualização do relatório" class="trip-report-frame"></iframe>`;
+  const frame = preview.querySelector("iframe");
+  if (frame) frame.srcdoc = html;
+}
+
+async function navigateTripView(view, { updateHistory = true } = {}) {
+  const nextView = VALID_TRIP_VIEWS.has(view) ? view : "geral";
+  if (updateHistory) setTripViewUrl(nextView);
+  updateTripView(nextView);
+  try {
+    const [response, typesResponse] = await Promise.all([
+      api.getTrip(tripId),
+      api.workTypes({ trip_id: tripId }),
+    ]);
+    const trip = response.trip;
+    fillWorkTypes(typesResponse.work_types || []);
+    renderTrip(trip);
+    setupLocationMonitor(trip);
+    const editBtn = document.getElementById("btn-edit-trip");
+    if (editBtn) editBtn.textContent = trip.status === "completed"
+      ? (tripEditMode ? "Sair do modo edição" : "Editar viagem")
+      : "Editar viagem";
+    setupPanelToggles();
+    setupNewTaskMenu();
+    updateTripView(nextView);
+    const taskFormWrap = document.getElementById("task-form-wrap");
+    if (taskFormWrap) taskFormWrap.classList.toggle("hidden-fields", nextView !== "tarefa");
+    if (nextView === "tarefa") configureTaskEntryMode("task");
+    if (nextView === "veiculos") {
+      await renderTripVehicles(document.getElementById("trip-vehicles-container"), trip, window.__currentUser, { alertEl });
+    }
+    updateReportIndicator(trip);
+    if (nextView === "relatorio") renderReportPreview(trip);
+  } catch (error) {
+    showAlert(alertEl, error.message || "Não foi possível carregar a viagem.");
+  }
+}
+
+function setupTripRouter() {
+  document.querySelectorAll("[data-trip-view]").forEach((tab) => {
+    tab.addEventListener("click", (event) => {
+      event.preventDefault();
+      navigateTripView(tab.dataset.tripView);
+    });
+  });
+  window.addEventListener("popstate", () => navigateTripView(currentTripView(), { updateHistory: false }));
+  const view = currentTripView();
+  const rawView = new URLSearchParams(window.location.search).get("view");
+  if (!rawView || !VALID_TRIP_VIEWS.has(rawView)) setTripViewUrl(view, true);
+  navigateTripView(view, { updateHistory: false });
+}
+
+function setupNewTaskMenu() {
+  const menu = document.getElementById("task-entry-menu");
+  const trigger = document.getElementById("btn-new-task");
+  const options = document.getElementById("task-entry-options");
+  const formWrap = document.getElementById("task-form-wrap");
+  if (!menu || !trigger || !options || !formWrap || menu.dataset.bound) return;
+  menu.dataset.bound = "true";
+
+  const closeOptions = () => {
+    options.classList.add("hidden-fields");
+    trigger.setAttribute("aria-expanded", "false");
+  };
+
+  trigger.addEventListener("click", () => {
+    const isClosed = options.classList.contains("hidden-fields");
+    if (isClosed && options.parentElement !== document.body) {
+      document.body.appendChild(options);
+    }
+    options.classList.toggle("hidden-fields", !isClosed);
+    trigger.setAttribute("aria-expanded", String(isClosed));
+  });
+
+  options.addEventListener("click", (event) => {
+    if (event.target === options) closeOptions();
+  });
+
+  options.querySelectorAll("[data-task-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.taskMode || "task";
+      closeOptions();
+      formWrap.classList.remove("hidden-fields");
+      configureTaskEntryMode(mode);
+      prepareTaskForm(window.__currentTrip, { clearDate: false });
+      formWrap.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeOptions();
+  });
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 function updateLocationMonitorStatus(trip, extra = {}) {
   const statusEl = document.getElementById('location-monitor-status');
   const panelEl = document.getElementById('location-monitor-panel');
@@ -154,7 +321,11 @@ function applyWordInlineStyles(rootEl) {
     } catch (e) {}
   }
 
+<<<<<<< HEAD
   const textEls = rootEl.querySelectorAll("h1, h2, h3, h4, .report-code, .card__title, .card__subtitle, .info-block__label, .info-block__value, .long-field__label, .task-card__worktype, .task-card__index, .task-card__date, .task-card__time, .task-card__row-label, .task-card__summary-label, .task-card__pending-label, .user-schedule-block__name, .user-schedule-block__meta, .day-schedule__date, .day-schedule__slots, .signature-placeholder, .signature-label, .report-footer td, .badge, .card__priority-ribbon, .task-card__status-badge, .table th, .text-muted-sub, .text--pending");
+=======
+  const textEls = rootEl.querySelectorAll("h1, h2, h3, h4, .report-code, .card__title, .card__subtitle, .info-block__label, .info-block__value, .long-field__label, .task-card__worktype, .task-card__index, .task-card__date, .task-card__time, .task-card__row-label, .task-card__summary-label, .task-card__pending-label, .user-schedule-block__name, .user-schedule-block__meta, .day-schedule__date, .day-schedule__slots, .signature-placeholder, .signature-label, .signature-date-field, .report-footer td, .badge, .card__priority-ribbon, .task-card__status-badge, .table th, .text-muted-sub, .text--pending");
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   for (const el of textEls) {
     try {
       const cs = window.getComputedStyle(el);
@@ -238,6 +409,10 @@ body { font-family: "Calibri", Arial, sans-serif; color: #111827; font-size: 11p
 .signature-line-simple { border: 0; border-top: 1pt solid #0f172a; width: 100%; margin: 0 auto 14pt auto; height:1pt; background:#fff; }
 .signature-placeholder { font-weight: 700; font-size: 14pt; color: #0f172a; line-height: 1.3; }
 .signature-label { font-size: 11pt; font-weight: 600; color: #0f172a; margin-top: 6pt; letter-spacing: 0.04em; }
+<<<<<<< HEAD
+=======
+.signature-date-field { font-size: 10pt; color: #6b7280; margin-top: 20pt; font-weight: 500; }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 .report-footer { width: 100%; border-collapse: collapse; margin-top: 28pt; background: #0f172a; border-radius: 8pt 8pt 0 0; }
 .report-footer td { padding: 12pt 16pt; font-size: 9pt; background: #0f172a; color: #e2e8f0; }
 .report-footer__mark-wrap img { width: 29pt; height: 29pt; display: block; }
@@ -685,6 +860,7 @@ function applyDemandCompletionOptimisticUpdate(trip, payload) {
     }
   }
 
+<<<<<<< HEAD
   if (updated) {
     const demandasContainer = document.getElementById("demandas-panel-container");
     if (demandasContainer) {
@@ -694,6 +870,8 @@ function applyDemandCompletionOptimisticUpdate(trip, payload) {
     }
   }
 
+=======
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   return nextTrip;
 }
 
@@ -706,6 +884,7 @@ async function init() {
   if (!user) return;
   window.__currentUser = user;
 
+<<<<<<< HEAD
   try {
     const [res, typesRes] = await Promise.all([
       api.getTrip(tripId),
@@ -734,6 +913,9 @@ async function init() {
   } catch (err) {
     showAlert(alertEl, err.message);
   }
+=======
+  setupTripRouter();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   document.getElementById('btn-trip-history')?.addEventListener('click', () => {
     window.location.href = `trip-history.html?id=${tripId}`;
@@ -784,7 +966,11 @@ document.getElementById("task-form")?.addEventListener("submit", async (e) => {
     ) {
       showAlert(
         alertEl,
+<<<<<<< HEAD
         "Há sobreposição com uma tarefa sua. Confira o aviso abaixo e clique em 'Salvar mesmo assim' para prosseguir.",
+=======
+        "Há sobreposição com uma tarefa sua. Ajuste o horário ou o responsável para continuar.",
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         "warning",
       );
       alertEl?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -805,8 +991,23 @@ document.getElementById("task-form")?.addEventListener("submit", async (e) => {
     window.__currentTrip = freshTrip;
     renderTrip(freshTrip);
     setupPanelToggles();
+<<<<<<< HEAD
     prepareTaskForm(freshTrip, { keepDate: true });
     showAlert(alertEl, "Tarefa salva com sucesso.", "success");
+=======
+    setupNewTaskMenu();
+    prepareTaskForm(freshTrip, { keepDate: true });
+
+    const plateMessageMap = {
+      existing: "Placa adicionada ao veículo existente.",
+      new: "Novo veículo criado na frota da viagem.",
+    };
+    showAlert(
+      alertEl,
+      plateMessageMap[payload.demanda_veiculo_placa_action] || "Tarefa salva com sucesso.",
+      "success",
+    );
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
     const taskId = res.task_id || (freshTrip?.tasks || []).slice(-1)[0]?.id || null;
     if (taskId && getLocationConsent(tripId) === true) {
@@ -893,9 +1094,21 @@ document.getElementById("btn-edit-trip")?.addEventListener("click", () => {
   const trip = window.__currentTrip;
   if (!trip) return;
   if (trip.status === "completed") {
+<<<<<<< HEAD
     document
       .getElementById("task-form-wrap")
       ?.scrollIntoView({ behavior: "smooth" });
+=======
+    if (tripEditMode) {
+      localStorage.removeItem("cto_trip_edit_mode");
+      const view = new URLSearchParams(window.location.search);
+      view.delete("edit");
+      window.location.href = `${window.location.pathname}?${view.toString()}`;
+      return;
+    }
+    localStorage.setItem("cto_trip_edit_mode", "1");
+    window.location.href = `trip-new.html?id=${tripId}&edit=1`;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     return;
   }
   window.location.href = `trip-new.html?id=${tripId}`;

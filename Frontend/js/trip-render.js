@@ -7,6 +7,10 @@ import {
 } from "./api.js";
 
 import { escapeHtml } from "./layout.js";
+<<<<<<< HEAD
+=======
+import { vehicleIdentity } from "./vehicle-identity.js";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 import {
   shouldShowVehicleFields,
@@ -15,10 +19,17 @@ import {
   isTravelType,
   normalizeWorkType,
   filterVehicleDetailCustomFields,
+<<<<<<< HEAD
 } from "./task-field-rules.js";
 
 import {
   renderQuadroDemandasIntegrante,
+=======
+  filterWorkTypesForProject,
+} from "./task-field-rules.js";
+
+import {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   inserirCampoAtividadePrioridadeNoForm,
   extrairPayloadDemandaDoForm,
   abrirModalDemandasLider,
@@ -34,6 +45,19 @@ let personalTaskSchedule = {
   requestId: 0,
   allowConflict: false,
 };
+<<<<<<< HEAD
+=======
+let availableWorkTypes = [];
+const DIVERSOS_PROJECT = "Diversos";
+const DIVERSOS_WORK_TYPES = [
+  "Almoço",
+  "Viagem",
+  "Deslocamento",
+  "Análise de veículos",
+  "Visita",
+  "Acompanhamento",
+];
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 function getTripDays(startDate, endDate) {
   const dates = [];
@@ -60,6 +84,19 @@ export function setReadOnly(flag) {
   });
 }
 
+<<<<<<< HEAD
+=======
+function canEditCompletedTrip(user, trip) {
+  if (!trip || trip.status !== "completed") return true;
+  if (new URLSearchParams(window.location.search).get("edit") === "1") return true;
+  if (!user) return false;
+  if (user.is_admin || user.is_admin_master) return true;
+  if (user.is_sector_leader) return true;
+  if (String(user.position_title || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === "lider") return true;
+  return Number(user.id || user.user_id) === Number(trip.user_id);
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 function hideElement(el) {
   if (el) el.classList.add("hidden-fields");
 }
@@ -82,6 +119,11 @@ function isTravelTypeTask(type) {
 
 function updateTaskTypeFields() {
   const type = document.getElementById("work_type")?.value;
+<<<<<<< HEAD
+=======
+  const form = document.getElementById("task-form");
+  const isOtherEntry = form?.dataset.entryMode === "other";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const vehicleFields = document.getElementById("vehicle-fields");
   const vehicleInput = document.getElementById("vehicle");
   const plateInput = document.getElementById("plate");
@@ -94,6 +136,21 @@ function updateTaskTypeFields() {
   const locationInput = document.getElementById("location");
   const summaryField = document.getElementById("summary-field");
   const summaryInput = document.getElementById("summary");
+<<<<<<< HEAD
+=======
+  const pendingItemsField = document.getElementById("pending-items-field");
+  const demandVehicleFields = document.getElementById("demand-vehicle-fields");
+
+  if (isOtherEntry) {
+    if (vehicleFields) hideElement(vehicleFields);
+    if (vehicleDetailFields) hideElement(vehicleDetailFields);
+    if (pendingItemsField) hideElement(pendingItemsField);
+    if (demandVehicleFields) hideElement(demandVehicleFields);
+  } else if (pendingItemsField) {
+    showElement(pendingItemsField);
+    if (demandVehicleFields) showElement(demandVehicleFields);
+  }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   if (vehicleFields) hideElement(vehicleFields);
   if (vehicleDetailFields) hideElement(vehicleDetailFields);
@@ -116,6 +173,13 @@ function updateTaskTypeFields() {
     if (plateInput) plateInput.required = true;
   }
 
+<<<<<<< HEAD
+=======
+  if (!requiresVehicleFields(type) && demandVehicleFields) {
+    hideElement(demandVehicleFields);
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const lunch = isLunchType(type);
   const travel = isTravelTypeTask(type);
   if (travel || lunch) {
@@ -143,6 +207,267 @@ function updateTaskTypeFields() {
   }
 }
 
+<<<<<<< HEAD
+=======
+function formatDemandVehicle(vehicle) {
+  return [vehicle.montadora, vehicle.modelo, vehicle.versao_modelo, vehicle.placa]
+    .filter(Boolean)
+    .join(" · ") || `Veículo ${vehicle.id}`;
+}
+
+function normalizePlate(value) {
+  return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function isValidPlate(value) {
+  const plate = normalizePlate(value);
+  return /^[A-Z]{3}[0-9]{4}$/.test(plate) || /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/.test(plate);
+}
+
+function formatPlateInput(value) {
+  const plate = normalizePlate(value).slice(0, 7);
+  if (plate.length <= 3) return plate;
+  return `${plate.slice(0, 3)}-${plate.slice(3)}`;
+}
+
+function setTaskPlateFieldVisibility(hidden) {
+  const plateInput = document.getElementById("plate");
+  const plateField = plateInput?.closest("div");
+  if (!plateInput || !plateField) return;
+  plateField.classList.toggle("hidden-fields", hidden);
+  if (hidden) plateInput.required = false;
+}
+
+function ensureDemandVehiclePlateAlert() {
+  const vehicleFields = document.getElementById("demand-vehicle-fields");
+  if (!vehicleFields) return null;
+
+  let alert = vehicleFields.querySelector("#demanda-veiculo-placa-alert");
+  if (!alert) {
+    alert = document.createElement("div");
+    alert.id = "demanda-veiculo-placa-alert";
+    alert.className = "alert alert-warning alert-interactive hidden-fields";
+    alert.innerHTML = `
+      <div class="plate-alert-content">
+        <div class="plate-alert-heading">
+          <span class="plate-alert-icon" aria-hidden="true">!</span>
+          <div>
+            <strong>Este veículo ainda não tem placa cadastrada</strong>
+            <span>Escolha como deseja registrar esta tarefa.</span>
+          </div>
+        </div>
+        <fieldset class="plate-choice-group">
+          <legend>Identificação do veículo</legend>
+          <label class="plate-choice">
+            <input type="radio" name="demanda_veiculo_placa_action" value="existing" />
+            <span class="plate-choice-copy">
+              <strong>É este mesmo veículo</strong>
+              <small>Apenas a placa estava faltando.</small>
+            </span>
+          </label>
+          <label class="plate-choice">
+            <input type="radio" name="demanda_veiculo_placa_action" value="new" />
+            <span class="plate-choice-copy">
+              <strong>É outro veículo do mesmo modelo</strong>
+              <small>A placa será usada para criar outro veículo.</small>
+            </span>
+          </label>
+          <label class="plate-choice">
+            <input type="radio" name="demanda_veiculo_placa_action" value="unplated" />
+            <span class="plate-choice-copy">
+              <strong>Veículo sem emplacamento</strong>
+              <small>A tarefa será registrada sem informar uma placa.</small>
+            </span>
+          </label>
+        </fieldset>
+        <div class="plate-input-group">
+          <label for="demanda_veiculo_placa">Placa do veículo</label>
+          <input id="demanda_veiculo_placa" type="text" placeholder="Ex.: ABC-1234" autocomplete="off" maxlength="8" disabled />
+          <small class="plate-input-hint">Escolha uma opção acima para informar a placa.</small>
+        </div>
+        <div class="plate-alert-actions">
+          <button type="button" class="btn btn-secondary" id="demanda-veiculo-placa-cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="demanda-veiculo-placa-confirm" disabled>Confirmar</button>
+        </div>
+      </div>
+    `;
+    vehicleFields.appendChild(alert);
+    alert.querySelectorAll('input[name="demanda_veiculo_placa_action"]').forEach((input) => {
+      input.addEventListener("change", syncDemandVehiclePlateAlertState);
+    });
+    const plateInput = alert.querySelector("#demanda_veiculo_placa");
+    const confirmButton = alert.querySelector("#demanda-veiculo-placa-confirm");
+    const cancelButton = alert.querySelector("#demanda-veiculo-placa-cancel");
+    plateInput?.addEventListener("input", () => {
+      plateInput.value = formatPlateInput(plateInput.value);
+      const taskPlateInput = document.getElementById("plate");
+      if (taskPlateInput) taskPlateInput.value = plateInput.value;
+      syncDemandVehiclePlateAlertState();
+    });
+    confirmButton?.addEventListener("click", () => {
+      const selectedAction = alert.querySelector('input[name="demanda_veiculo_placa_action"]:checked')?.value || "";
+      if (selectedAction !== "unplated" && !isValidPlate(plateInput?.value)) return;
+      const taskPlateInput = document.getElementById("plate");
+      if (taskPlateInput) taskPlateInput.value = selectedAction === "unplated" ? "" : plateInput.value;
+      setTaskPlateFieldVisibility(selectedAction === "unplated");
+      alert.classList.add("hidden-fields");
+      const saveButton = document.getElementById("btn-save-task");
+      if (saveButton) saveButton.disabled = false;
+    });
+    cancelButton?.addEventListener("click", () => {
+      alert.querySelectorAll('input[name="demanda_veiculo_placa_action"]').forEach((input) => {
+        input.checked = false;
+      });
+      if (plateInput) {
+        plateInput.value = "";
+        plateInput.disabled = true;
+      }
+      const taskPlateInput = document.getElementById("plate");
+      if (taskPlateInput) taskPlateInput.value = "";
+      setTaskPlateFieldVisibility(false);
+      alert.classList.add("hidden-fields");
+      const saveButton = document.getElementById("btn-save-task");
+      if (saveButton) saveButton.disabled = true;
+    });
+  }
+
+  return alert;
+}
+
+function syncDemandVehiclePlateAlertState() {
+  const vehicleSelect = document.getElementById("demanda_veiculo_id");
+  const alert = ensureDemandVehiclePlateAlert();
+  const saveButton = document.getElementById("btn-save-task");
+  const selectedOption = vehicleSelect?.selectedOptions?.[0];
+  const requiresPlatePrompt = Boolean(selectedOption && selectedOption.dataset.hasPlaca === "false");
+
+  if (!requiresPlatePrompt) {
+    alert?.classList.add("hidden-fields");
+    setTaskPlateFieldVisibility(false);
+    if (saveButton) saveButton.disabled = false;
+    return;
+  }
+
+  const selectedAction = document.querySelector('input[name="demanda_veiculo_placa_action"]:checked')?.value || "";
+  const placa = document.getElementById("demanda_veiculo_placa")?.value.trim() || "";
+  const plateInput = document.getElementById("demanda_veiculo_placa");
+  const confirmButton = document.getElementById("demanda-veiculo-placa-confirm");
+  const plateGroup = plateInput?.closest(".plate-input-group");
+  const noPlateSelected = selectedAction === "unplated";
+
+  alert?.classList.remove("hidden-fields");
+  setTaskPlateFieldVisibility(noPlateSelected);
+  plateGroup?.classList.toggle("hidden-fields", noPlateSelected);
+  if (plateInput) plateInput.disabled = !selectedAction || noPlateSelected;
+  if (noPlateSelected) {
+    if (plateInput) plateInput.value = "";
+    const taskPlateInput = document.getElementById("plate");
+    if (taskPlateInput) taskPlateInput.value = "";
+  }
+  if (confirmButton) confirmButton.disabled = !(noPlateSelected || (selectedAction && isValidPlate(placa)));
+  if (saveButton) saveButton.disabled = true;
+  if (selectedAction && !noPlateSelected && document.activeElement !== plateInput) plateInput?.focus();
+}
+
+function populateDemandVehicleFields(trip) {
+  const vehicleFields = document.getElementById("demand-vehicle-fields");
+  const vehicleSelect = document.getElementById("demanda_veiculo_id");
+  const activityField = document.getElementById("demand-activity-field");
+  const activitySelect = document.getElementById("demanda_atividade_id");
+  if (!vehicleFields || !vehicleSelect || !activityField || !activitySelect) return;
+
+  const vehiclesByIdentity = new Map();
+
+  for (const demand of trip?.demandas || []) {
+    for (const vehicle of demand.veiculos || []) {
+      const demandVehicleId = Number(vehicle.id || 0);
+      if (!demandVehicleId) continue;
+
+      const identity = vehicleIdentity(vehicle);
+      const existing = vehiclesByIdentity.get(identity) || {
+        id: demandVehicleId,
+        montadora: vehicle.montadora || "",
+        modelo: vehicle.modelo || "",
+        versao_modelo: vehicle.versao_modelo || "",
+        placa: vehicle.placa || "",
+        ano: vehicle.ano || "",
+        atividades: [],
+        demanda_tipo_projeto: demand.tipo_projeto || "",
+        demanda_tipo_trabalho: demand.tipo_trabalho || "",
+      };
+
+      const mergedActivities = [...(existing.atividades || []), ...(vehicle.atividades || []).filter((activity) => activity.status !== "concluida")];
+      const uniqueActivities = new Map();
+      for (const activity of mergedActivities) {
+        const activityKey = [activity?.id ?? "", activity?.atividade_descricao ?? activity?.descricao ?? "", activity?.prioridade ?? "", activity?.status ?? ""].join("|");
+        if (!uniqueActivities.has(activityKey)) {
+          uniqueActivities.set(activityKey, { ...activity });
+        }
+      }
+      existing.atividades = [...uniqueActivities.values()];
+      existing.demanda_tipo_projeto = demand.tipo_projeto || existing.demanda_tipo_projeto || "";
+      existing.demanda_tipo_trabalho = demand.tipo_trabalho || existing.demanda_tipo_trabalho || "";
+      vehiclesByIdentity.set(identity, existing);
+    }
+  }
+
+  const vehicles = [...vehiclesByIdentity.values()];
+  const currentVehicle = vehicleSelect.value;
+  vehicleSelect.innerHTML = '<option value="">Sem veículo de demanda</option>' + vehicles
+    .map((vehicle) => `<option value="${vehicle.id}" data-has-placa="${Boolean(vehicle.placa)}">${escapeHtml(formatDemandVehicle(vehicle))}</option>`)
+    .join("");
+  if (currentVehicle && vehicles.some((vehicle) => String(vehicle.id) === currentVehicle)) {
+    vehicleSelect.value = currentVehicle;
+  }
+
+  const updateActivityOptions = () => {
+    const vehicle = vehicles.find((item) => String(item.id) === String(vehicleSelect.value));
+    const plateInput = document.getElementById("demanda_veiculo_placa");
+    if (plateInput) plateInput.value = "";
+    document.querySelectorAll('input[name="demanda_veiculo_placa_action"]').forEach((input) => {
+      input.checked = false;
+    });
+
+    if (!vehicle) {
+      activityField.classList.add("hidden-fields");
+      activitySelect.innerHTML = '<option value="">Selecione uma demanda</option>';
+      setVehicleDetailFields(null);
+      syncDemandVehiclePlateAlertState();
+      return;
+    }
+
+    if (vehicle.atividades?.length) activityField.classList.remove("hidden-fields");
+    else activityField.classList.add("hidden-fields");
+    activitySelect.innerHTML = '<option value="">Selecione uma demanda</option>' +
+      (vehicle.atividades || []).map((activity) =>
+        `<option value="${activity.id}">${escapeHtml(activity.atividade_descricao || "Demanda")}${activity.prioridade ? ` · P${activity.prioridade}` : ""}</option>`,
+      ).join("");
+    setVehicleDetailFields(vehicle);
+    syncDemandVehiclePlateAlertState();
+  };
+
+  if (!vehicleSelect.dataset.listenerAttached) {
+    vehicleSelect.addEventListener("change", updateActivityOptions);
+    vehicleSelect.dataset.listenerAttached = "1";
+  }
+  updateActivityOptions();
+}
+
+function setVehicleDetailFields(vehicle) {
+  const values = {
+    montadora: vehicle?.montadora || "",
+    modelo: vehicle?.modelo || "",
+    submodelo: vehicle?.versao_modelo || "",
+    plate: vehicle?.placa || "",
+    ano: vehicle?.ano || "",
+  };
+  for (const [id, value] of Object.entries(values)) {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  }
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 function renderMembers(t) {
   const el = document.getElementById("trip-members");
   if (!el) return;
@@ -537,11 +862,34 @@ function renderTasks(t) {
     })
     .join("");
 
+<<<<<<< HEAD
+=======
+  board.querySelectorAll(".task-day-group").forEach((group, index) => {
+    const dayTasks = [...(byDate.get(dates[index]) || [])].sort((a, b) =>
+      String(a.start_time || "").localeCompare(String(b.start_time || "")),
+    );
+    for (let taskIndex = 0; taskIndex < dayTasks.length - 1; taskIndex++) {
+      if (dayTasks[taskIndex].end_time !== "12:00" || dayTasks[taskIndex + 1].start_time !== "13:00") continue;
+      const cards = group.querySelectorAll(".task-card");
+      const nextCard = cards[taskIndex + 1];
+      if (nextCard) {
+        nextCard.insertAdjacentHTML("beforebegin", '<div class="automatic-lunch-marker">Almoço · 12:00 – 13:00</div>');
+      }
+    }
+  });
+
+  if (board.dataset.taskBoardEventsAttached) return;
+  board.dataset.taskBoardEventsAttached = "1";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   board.addEventListener("click", (e) => {
     const card = e.target.closest(".task-card");
     if (!card) return;
     const taskId = Number(card.dataset.taskId);
+<<<<<<< HEAD
     const task = tasks.find((t) => t.id === taskId);
+=======
+    const task = tasks.find((t) => Number(t.id) === taskId);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     if (task) openTaskModal(task);
   });
 
@@ -551,7 +899,11 @@ function renderTasks(t) {
       if (!card) return;
       e.preventDefault();
       const taskId = Number(card.dataset.taskId);
+<<<<<<< HEAD
       const task = tasks.find((t) => t.id === taskId);
+=======
+      const task = tasks.find((t) => Number(t.id) === taskId);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       if (task) openTaskModal(task);
     }
   });
@@ -929,7 +1281,14 @@ export function prepareTaskForm(
 
   const projectSelect = document.getElementById("project_id");
   if (projectSelect && !projectSelect.dataset.listenerAttached) {
+<<<<<<< HEAD
     projectSelect.addEventListener("change", loadCustomFieldsForForm);
+=======
+    projectSelect.addEventListener("change", () => {
+      updateWorkTypesForProject();
+      loadCustomFieldsForForm();
+    });
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     projectSelect.dataset.listenerAttached = "1";
   }
 
@@ -971,6 +1330,10 @@ export function prepareTaskForm(
     }
   }
 
+<<<<<<< HEAD
+=======
+  updateWorkTypesForProject();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   updateTaskTypeFields();
   lastTaskDate = dateInput?.value || "";
   refreshPersonalSchedule(t, dateInput?.value || "");
@@ -1029,7 +1392,11 @@ async function loadCustomFieldsForForm() {
   }
 }
 
+<<<<<<< HEAD
 export function fillWorkTypes(types) {
+=======
+function renderWorkTypeOptions(types) {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const sel = document.getElementById("work_type");
   if (!sel) return;
   const current = sel.value;
@@ -1043,26 +1410,185 @@ export function fillWorkTypes(types) {
   if (current) sel.value = current;
 }
 
+<<<<<<< HEAD
+=======
+function updateWorkTypesForProject() {
+  const projectSelect = document.getElementById("project_id");
+  if (!projectSelect) return;
+  const selectedProject = String(projectSelect.selectedOptions?.[0]?.textContent || "").trim();
+  const currentWorkType = document.getElementById("work_type")?.value || "";
+
+  const isDiversos = normalizeWorkType(selectedProject) === normalizeWorkType(DIVERSOS_PROJECT);
+  const types = isDiversos
+    ? DIVERSOS_WORK_TYPES
+    : filterWorkTypesForProject(availableWorkTypes, selectedProject);
+
+  renderWorkTypeOptions(types);
+  const workType = document.getElementById("work_type");
+  if (workType && currentWorkType && types.some((type) => normalizeWorkType(type) === normalizeWorkType(currentWorkType))) {
+    workType.value = currentWorkType;
+  }
+}
+
+export function fillWorkTypes(types) {
+  availableWorkTypes = [...new Set((types || []).map((type) => String(type || "").trim()).filter(Boolean))];
+  renderWorkTypeOptions(availableWorkTypes);
+}
+
+export function configureTaskEntryMode(mode = "task") {
+  const normalizedMode = mode === "other" ? "other" : "task";
+  const projectWrap = document.getElementById("project_id")?.closest("div");
+  const demandAnchor = document.getElementById("demanda-prioridade-anchor");
+  const demandasPanel = document.getElementById("demandas-panel-container") || document.getElementById("demandas");
+  const selectedProject = String(document.getElementById("project_id")?.selectedOptions?.[0]?.textContent || "").trim();
+  const isDiversos = normalizeWorkType(selectedProject) === normalizeWorkType(DIVERSOS_PROJECT);
+  const types = normalizedMode === "other"
+    ? ["Refeição", "Viagem", "Deslocamento"]
+    : isDiversos
+      ? DIVERSOS_WORK_TYPES
+      : filterWorkTypesForProject(availableWorkTypes, selectedProject);
+
+  renderWorkTypeOptions(types);
+  const taskForm = document.getElementById("task-form");
+  if (taskForm) taskForm.dataset.entryMode = normalizedMode;
+  if (normalizedMode === "task") populateDemandVehicleFields(window.__currentTrip);
+  else {
+    document.getElementById("demanda_veiculo_id")?.replaceChildren(new Option("Sem veículo de demanda", ""));
+    document.getElementById("demanda_atividade_id")?.replaceChildren(new Option("Selecione uma demanda", ""));
+    document.getElementById("demand-activity-field")?.classList.add("hidden-fields");
+  }
+  if (projectWrap) projectWrap.classList.toggle("hidden-fields", normalizedMode === "other");
+  if (demandAnchor) demandAnchor.classList.toggle("hidden-fields", normalizedMode === "other");
+  if (demandasPanel) demandasPanel.classList.toggle("hidden-fields", normalizedMode === "other");
+  if (normalizedMode === "other") {
+    const projectSelect = document.getElementById("project_id");
+    if (projectSelect) projectSelect.value = "";
+    document.getElementById("demanda-prioridade-wrap")?.remove();
+    if (demandAnchor) demandAnchor.innerHTML = "";
+  } else if (window.__currentTrip) {
+    inserirCampoAtividadePrioridadeNoForm(document.getElementById("task-form"), window.__currentTrip, {
+      onChange: preencherCamposPelaDemanda,
+    });
+  }
+  const workType = document.getElementById("work_type");
+  if (workType) {
+    workType.value = "";
+    updateTaskTypeFields();
+    loadCustomFieldsForForm();
+  }
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 export function fillProjects(projects) {
   const sel = document.getElementById("project_id");
   if (!sel) return;
   const current = sel.value;
   sel.innerHTML = '<option value="">Sem projeto</option>';
+<<<<<<< HEAD
   for (const p of projects || []) {
+=======
+  const diversosOption = document.createElement("option");
+  diversosOption.value = DIVERSOS_PROJECT;
+  diversosOption.textContent = DIVERSOS_PROJECT;
+  sel.appendChild(diversosOption);
+  for (const p of projects || []) {
+    if (normalizeWorkType(p.name) === normalizeWorkType(DIVERSOS_PROJECT)) continue;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     const opt = document.createElement("option");
     opt.value = p.id || p.name;
     opt.textContent = p.name;
     sel.appendChild(opt);
   }
   if (current) sel.value = current;
+<<<<<<< HEAD
 }
 
 function preencherCamposPelaDemanda(atividadesSelecionadas = []) {
+=======
+  updateWorkTypesForProject();
+}
+
+function preencherCamposPelaDemanda(atividadesSelecionadas = [], { veiculoCompativel = true } = {}) {
+  const taskFieldsSection = document.getElementById("task-fields-section");
+  const taskFieldsContent = taskFieldsSection?.querySelector(".collapsible-content");
+  const taskFieldsToggle = taskFieldsSection?.querySelector(".panel-toggle");
+  if (taskFieldsContent) taskFieldsContent.classList.remove("collapsed");
+  if (taskFieldsToggle) {
+    taskFieldsToggle.classList.remove("collapsed");
+    taskFieldsToggle.setAttribute("aria-expanded", "true");
+  }
+  try {
+    localStorage.setItem("panelState_taskFields", "expanded");
+  } catch (e) {}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const demanda = atividadesSelecionadas[0];
   if (!demanda) return;
 
   const workTypeSelect = document.getElementById("work_type");
   const projectSelect = document.getElementById("project_id");
+<<<<<<< HEAD
+=======
+  const demandVehicleSelect = document.getElementById("demanda_veiculo_id");
+  const demandActivitySelect = document.getElementById("demanda_atividade_id");
+  const demandActivityField = document.getElementById("demand-activity-field");
+
+  if (!veiculoCompativel) {
+    setVehicleDetailFields(null);
+    if (workTypeSelect) workTypeSelect.value = "";
+    if (projectSelect) projectSelect.value = "";
+    if (demandVehicleSelect) demandVehicleSelect.value = "";
+    updateTaskTypeFields();
+    loadCustomFieldsForForm();
+    return;
+  }
+
+  if (demandVehicleSelect && demanda.veiculoId) {
+    const vehicleOption = [...demandVehicleSelect.options].find(
+      (option) => String(option.value) === String(demanda.veiculoId),
+    );
+    if (vehicleOption) {
+      demandVehicleSelect.value = vehicleOption.value;
+    }
+  }
+
+  const tripDemandVehicle = Array.isArray(window.__currentTrip?.demandas)
+    ? window.__currentTrip.demandas
+        .flatMap((item) => Array.isArray(item.veiculos) ? item.veiculos : [])
+        .find((vehicle) => String(vehicle.id) === String(demanda.veiculoId || ""))
+    : null;
+  const tripDemandActivities = Array.isArray(tripDemandVehicle?.atividades)
+    ? tripDemandVehicle.atividades.filter((activity) => activity.status !== "concluida")
+    : [];
+
+  if (demandActivitySelect) {
+    demandActivitySelect.innerHTML = '<option value="">Selecione uma demanda</option>' +
+      tripDemandActivities.map((activity) =>
+        `<option value="${activity.id}">${escapeHtml(activity.atividade_descricao || "Demanda")}${activity.prioridade ? ` · P${activity.prioridade}` : ""}</option>`,
+      ).join("");
+
+    if (demanda.atividadeId) {
+      const activityOption = [...demandActivitySelect.options].find(
+        (option) => String(option.value) === String(demanda.atividadeId),
+      );
+      if (activityOption) {
+        demandActivitySelect.value = activityOption.value;
+      }
+    }
+  }
+
+  if (demandActivityField) {
+    demandActivityField.classList.toggle("hidden-fields", !tripDemandActivities.length);
+  }
+
+  setVehicleDetailFields({
+    montadora: demanda.montadora,
+    modelo: demanda.modelo,
+    versao_modelo: demanda.versaoModelo,
+    ano: demanda.ano,
+    placa: demanda.placa,
+  });
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   if (workTypeSelect && demanda.tipoTrabalho) {
     const workTypeOption = [...workTypeSelect.options].find(
@@ -1077,6 +1603,11 @@ function preencherCamposPelaDemanda(atividadesSelecionadas = []) {
     );
     if (projectOption) projectSelect.value = projectOption.value;
   }
+<<<<<<< HEAD
+=======
+
+  syncDemandVehiclePlateAlertState();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 
 async function loadProjects(opts = {}) {
@@ -1172,7 +1703,14 @@ function getPersonalScheduleConflict(date, startTime, endTime) {
   const end = minutesFromTime(endTime);
   if (start == null || end == null || end <= start) return null;
 
+<<<<<<< HEAD
   for (const schedule of Object.values(personalTaskSchedule.schedules)) {
+=======
+  const selectedIds = new Set(getSelectedTaskResponsibleIds());
+
+  for (const schedule of Object.values(personalTaskSchedule.schedules)) {
+    if (selectedIds.size && !selectedIds.has(Number(schedule.user_id))) continue;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     const conflict = schedule.tasks.find((task) => {
       const occupiedStart = minutesFromTime(task.start_time);
       const occupiedEnd = minutesFromTime(task.end_time);
@@ -1254,6 +1792,7 @@ function renderPersonalSchedule(t) {
       ${scheduleSections || '<div class="task-schedule-empty">Selecione um responsável para consultar os horários.</div>'}
     </div>
     ${extraNames.length && startTime && endTime ? `<div class="task-extra-responsibles"><span aria-hidden="true">ⓘ</span> ${escapeHtml(selectedStart)} também será reservado para ${escapeHtml(extraNames.join(" e "))} nessa tarefa.</div>` : ""}
+<<<<<<< HEAD
     ${conflict ? `<div class="task-schedule-conflict" role="alert"><span aria-hidden="true">⚠</span> ${escapeHtml(formatTimeLabel(conflict.start_time))}–${escapeHtml(formatTimeLabel(conflict.end_time))} já está ocupado para ${escapeHtml(conflict.responsible_name || "um responsável selecionado")}. <button type="button" class="btn btn-secondary btn-sm" data-allow-task-conflict>Salvar mesmo assim</button></div>` : ""}
   `;
   panel.classList.remove("hidden-fields");
@@ -1261,6 +1800,11 @@ function renderPersonalSchedule(t) {
     personalTaskSchedule.allowConflict = true;
     renderPersonalSchedule(t);
   });
+=======
+    ${conflict ? `<div class="task-schedule-conflict" role="alert"><span aria-hidden="true">⚠</span> ${escapeHtml(formatTimeLabel(conflict.start_time))}–${escapeHtml(formatTimeLabel(conflict.end_time))} já está ocupado para ${escapeHtml(conflict.responsible_name || "um responsável selecionado")}. </div>` : ""}
+  `;
+  panel.classList.remove("hidden-fields");
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 
 async function refreshPersonalSchedule(t, date) {
@@ -1577,7 +2121,11 @@ export function setupPanelToggles() {
     if (button.dataset.toggle === "demandas-panel") return;
     if (button.dataset.panelToggleBound === "true") return;
     button.dataset.panelToggleBound = "true";
+<<<<<<< HEAD
     button.addEventListener("click", (e) => {
+=======
+    const toggle = (e) => {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       e.preventDefault();
       const isForm = button.closest("#task-form-wrap");
       const collapsibleSection = button.closest(".collapsible-section");
@@ -1597,7 +2145,22 @@ export function setupPanelToggles() {
           : `panelState_${button.closest(".panel")?.querySelector("h2, h3")?.textContent || "panel"}`;
         localStorage.setItem(key, collapsed ? "collapsed" : "expanded");
       } catch (e) {}
+<<<<<<< HEAD
     });
+=======
+    };
+
+    button.addEventListener("click", toggle);
+    const header = button.closest(".panel-header, .panel-subheader, .collapsible-header");
+    if (header && header.dataset.panelHeaderToggleBound !== "true") {
+      header.dataset.panelHeaderToggleBound = "true";
+      header.style.cursor = "pointer";
+      header.addEventListener("click", (e) => {
+        if (e.target.closest("button, a, input, select, textarea, label")) return;
+        toggle(e);
+      });
+    }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   });
 
   try {
@@ -1699,6 +2262,7 @@ export function renderTrip(t) {
   }
 
   prepareTaskForm(t, { clearDate: false });
+<<<<<<< HEAD
   setReadOnly(false);
   window.__currentTrip = t;
 
@@ -1720,6 +2284,12 @@ export function renderTrip(t) {
     });
   }
 
+=======
+  const completedReadOnly = !canEditCompletedTrip(window.__currentUser || {}, t);
+  setReadOnly(completedReadOnly);
+  window.__currentTrip = t;
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const alertEl = document.getElementById("alert");
   const taskForm = document.getElementById("task-form");
   if (taskForm) {
@@ -1771,6 +2341,14 @@ export function taskFormPayload() {
     .filter(Boolean);
 
   const demandaPayload = extrairPayloadDemandaDoForm();
+<<<<<<< HEAD
+=======
+  const selectedVehicleId = Number(
+    document.getElementById("demanda_veiculo_id")?.value || 0,
+  );
+  const demandaVeiculoId = demandaPayload.demanda_veiculo_id ||
+    (selectedVehicleId > 0 ? selectedVehicleId : null);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   return {
     work_type: document.getElementById("work_type").value,
@@ -1790,7 +2368,14 @@ export function taskFormPayload() {
     submodelo: document.getElementById("submodelo")?.value.trim() || null,
     ano: document.getElementById("ano")?.value.trim() || null,
     project_id: document.getElementById("project_id")?.value || null,
+<<<<<<< HEAD
     ...demandaPayload,
+=======
+    demanda_veiculo_placa_action: document.querySelector('input[name="demanda_veiculo_placa_action"]:checked')?.value || null,
+    demanda_veiculo_placa: document.getElementById("demanda_veiculo_placa")?.value.trim() || null,
+    ...demandaPayload,
+    demanda_veiculo_id: demandaVeiculoId,
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     custom_fields: Object.fromEntries(
       Array.from(
         document.querySelectorAll("#custom-fields-container input"),

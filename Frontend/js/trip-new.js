@@ -3,11 +3,20 @@ import { escapeHtml, mountShell } from "./layout.js";
 import { saveTripOffline } from "./db-offline.js";
 
 import { setLocationConsent } from "./location.js";
+<<<<<<< HEAD
 import { findCity, searchCities } from "./cidades.js";
+=======
+import { searchCities } from "./cidades.js";
+import { debounce } from "./ui.js";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 const params = new URLSearchParams(location.search);
 const editTripId = Number(params.get("id")) || null;
 const isEditing = Boolean(editTripId);
+<<<<<<< HEAD
+=======
+if (params.get("edit") === "1") localStorage.setItem("cto_trip_edit_mode", "1");
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 const form = document.getElementById("trip-form");
 const alertEl = document.getElementById("alert");
 const btn = document.getElementById("btn-submit");
@@ -16,6 +25,11 @@ const membersCheckboxes = document.getElementById("members-checkboxes");
 const pageTitle = document.querySelector(".page-header h1");
 const pageSubtitle = document.querySelector(".page-header p");
 const memberSectorFilter = document.getElementById("member-sector-filter");
+<<<<<<< HEAD
+=======
+const tripVehiclesList = document.getElementById("trip-vehicles-list");
+const addTripVehicleButton = document.getElementById("btn-add-trip-vehicle");
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 const equipmentColumns = document.getElementById("equipment-columns");
 const equipmentCatalogType = document.getElementById("equipment-catalog-type");
@@ -32,6 +46,71 @@ let equipmentCatalog = [];
 let equipmentTypes = [];
 let selectedMemberSector = "";
 let carriedEquipment = new Map();
+<<<<<<< HEAD
+=======
+let tripVehicles = [];
+let vehicleEditor = null;
+let memberConflicts = new Map();
+let memberConflictLoading = false;
+let memberConflictRequestId = 0;
+
+function renderTripVehicles() {
+  if (!tripVehiclesList) return;
+  const rows = tripVehicles.map((vehicle, index) => {
+    if (vehicleEditor?.index === index) return renderVehicleEditor(vehicleEditor.draft, index);
+    return `
+      <div class="trip-vehicle-summary" data-index="${index}">
+        <div class="trip-vehicle-summary-main">
+          <strong>${escapeHtml([vehicle.montadora, vehicle.modelo].filter(Boolean).join(" ") || "Veículo sem identificação")}</strong>
+          <span>${escapeHtml([vehicle.versao_modelo, vehicle.ano].filter(Boolean).join(" · ") || "Dados complementares não informados")}</span>
+        </div>
+        ${vehicle.placa ? `<span class="trip-vehicle-plate">${escapeHtml(vehicle.placa.toUpperCase())}</span>` : ""}
+        <div class="trip-vehicle-actions">
+          <button type="button" class="trip-vehicle-icon-button" data-action="edit-vehicle" aria-label="Editar veículo" title="Editar veículo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"></path></svg></button>
+          <button type="button" class="trip-vehicle-icon-button is-danger" data-action="remove-vehicle" aria-label="Remover veículo" title="Remover veículo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="m19 6-1 14H6L5 6"></path><path d="M10 11v5M14 11v5"></path></svg></button>
+        </div>
+      </div>`;
+  });
+
+  if (vehicleEditor && vehicleEditor.index === tripVehicles.length) {
+    rows.push(renderVehicleEditor(vehicleEditor.draft, vehicleEditor.index));
+  }
+
+  tripVehiclesList.innerHTML = rows.join("") || '<div class="trip-vehicles-empty">Nenhum veículo cadastrado ainda.</div>';
+  if (addTripVehicleButton) addTripVehicleButton.classList.toggle("hidden-fields", Boolean(vehicleEditor));
+}
+
+function renderVehicleEditor(vehicle, index) {
+  return `
+    <div class="trip-vehicle-editor" data-index="${index}">
+      <div class="form-grid two">
+        <div><label>Montadora *</label><input data-vehicle-field="montadora" value="${escapeHtml(vehicle.montadora)}" required></div>
+        <div><label>Modelo *</label><input data-vehicle-field="modelo" value="${escapeHtml(vehicle.modelo)}" required></div>
+        <div><label>Versão modelo *</label><input data-vehicle-field="versao_modelo" value="${escapeHtml(vehicle.versao_modelo)}" required></div>
+        <div><label>Ano *</label><input data-vehicle-field="ano" value="${escapeHtml(vehicle.ano)}" required></div>
+        <div><label>Placa</label><input data-vehicle-field="placa" value="${escapeHtml(vehicle.placa)}"></div>
+      </div>
+      <div class="trip-vehicle-editor-actions">
+        <button type="button" class="btn btn-secondary" data-action="cancel-vehicle">Cancelar</button>
+        <button type="button" class="btn btn-primary" data-action="save-vehicle">Salvar veículo</button>
+      </div>
+    </div>`;
+}
+
+function setTripVehicles(vehicles = []) {
+  tripVehicles = (Array.isArray(vehicles) ? vehicles : []).map((vehicle) => ({
+    id: vehicle.id || null,
+    montadora: String(vehicle.montadora || ""), modelo: String(vehicle.modelo || ""),
+    versao_modelo: String(vehicle.versao_modelo || ""), ano: String(vehicle.ano || ""), placa: String(vehicle.placa || ""),
+  }));
+  vehicleEditor = null;
+  renderTripVehicles();
+}
+
+function collectTripVehicles() {
+  return tripVehicles.filter((vehicle) => Object.entries(vehicle).some(([key, value]) => key !== "id" && String(value || "").trim()));
+}
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 function getVisibleUsers() {
   const sector = String(selectedMemberSector || "").trim();
@@ -219,12 +298,66 @@ function renderMemberCheckboxes() {
       <input type="checkbox" value="${u.id}" ${selectedMembers.has(Number(u.id)) ? "checked" : ""}>
       <span class="member-checkbox-info compact-info">
         <strong>${escapeHtml(u.full_name)}</strong>
+<<<<<<< HEAD
+=======
+        ${memberConflicts.get(Number(u.id)) ? `<span class="member-conflict-warning">⚠️ Em viagem "${escapeHtml(memberConflicts.get(Number(u.id)).titulo)}" de ${formatConflictDate(memberConflicts.get(Number(u.id)).data_inicio)} a ${formatConflictDate(memberConflicts.get(Number(u.id)).data_fim)}</span>` : ""}
+        ${memberConflictLoading && selectedMembers.has(Number(u.id)) && !memberConflicts.has(Number(u.id)) ? '<span class="member-conflict-loading">Verificando disponibilidade...</span>' : ""}
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       </span>
     </label>`,
     )
     .join("");
 }
 
+<<<<<<< HEAD
+=======
+function formatConflictDate(value) {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? String(value || "") : date.toLocaleDateString("pt-BR");
+}
+
+async function checkMemberConflicts() {
+  const startDate = normalizeIsoDate(startDateInput?.value || "");
+  const endDate = normalizeIsoDate(endDateInput?.value || "");
+  const userIds = [...selectedMembers.keys()].map(Number).filter(Boolean);
+  const requestId = ++memberConflictRequestId;
+
+  if (!startDate || !endDate || endDate < startDate || !userIds.length) {
+    memberConflicts = new Map();
+    memberConflictLoading = false;
+    renderMemberCheckboxes();
+    return;
+  }
+
+  memberConflictLoading = true;
+  renderMemberCheckboxes();
+  try {
+    const response = await api.checkTripMemberConflicts({
+      usuario_ids: userIds,
+      data_inicio: startDate,
+      data_fim: endDate,
+      viagem_id: editTripId || undefined,
+    });
+    if (requestId !== memberConflictRequestId) return;
+    const next = new Map();
+    for (const conflict of response.conflitos || []) {
+      if (!next.has(Number(conflict.usuario_id))) next.set(Number(conflict.usuario_id), conflict.viagem_conflito);
+    }
+    memberConflicts = next;
+  } catch {
+    if (requestId !== memberConflictRequestId) return;
+    memberConflicts = new Map();
+  } finally {
+    if (requestId === memberConflictRequestId) {
+      memberConflictLoading = false;
+      renderMemberCheckboxes();
+    }
+  }
+}
+
+const debouncedCheckMemberConflicts = debounce(checkMemberConflicts, 400);
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 async function init() {
   currentUser = await mountShell({ active: "new" });
   if (!currentUser) return;
@@ -289,7 +422,11 @@ async function init() {
       const tripRes = await api.getTrip(editTripId);
       currentTrip = tripRes.trip;
       if (currentTrip) {
+<<<<<<< HEAD
         if (currentTrip.status === "completed") {
+=======
+        if (currentTrip.status === "completed" && params.get("edit") !== "1") {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
           window.location.href = `trip.html?id=${editTripId}`;
           return;
         }
@@ -308,6 +445,10 @@ async function init() {
           memberSectorFilter.value = selectedMemberSector;
         }
         setSelectedMembersFromTrip(currentTrip.members || []);
+<<<<<<< HEAD
+=======
+        setTripVehicles(currentTrip.vehicles || []);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         const savedChecklist = currentTrip.checklist?.equipment_checklist || [];
         carriedEquipment = new Map();
         for (const item of savedChecklist) {
@@ -329,23 +470,113 @@ async function init() {
   syncTripDates();
   await refreshAvailableUsers();
   renderMemberCheckboxes();
+<<<<<<< HEAD
+=======
+  await checkMemberConflicts();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   setEditMode();
 }
 
 const startDateInput = document.getElementById("start_date");
 const endDateInput = document.getElementById("end_date");
 
+<<<<<<< HEAD
 function syncTripDates() {
   const start = startDateInput?.value;
   const end = endDateInput?.value;
   if (!endDateInput) return;
 
+=======
+function normalizeIsoDate(value) {
+  if (!value && value !== 0) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  const match = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (!match) return "";
+
+  const [, day, month, year] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (Number.isNaN(date.getTime())) return "";
+
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+tripVehiclesList?.addEventListener("input", (event) => {
+  const field = event.target.closest("[data-vehicle-field]");
+  if (field && vehicleEditor) vehicleEditor.draft[field.dataset.vehicleField] = field.value;
+});
+tripVehiclesList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-action]");
+  if (!button) return;
+  const row = button.closest("[data-index]");
+  const index = Number(row?.dataset.index);
+  const action = button.dataset.action;
+
+  if (action === "edit-vehicle") {
+    vehicleEditor = { index, draft: { ...tripVehicles[index] }, isNew: false };
+    renderTripVehicles();
+    return;
+  }
+  if (action === "remove-vehicle") {
+    tripVehicles.splice(index, 1);
+    renderTripVehicles();
+    return;
+  }
+  if (action === "cancel-vehicle") {
+    vehicleEditor = null;
+    renderTripVehicles();
+    return;
+  }
+  if (action === "save-vehicle") {
+    const draft = vehicleEditor?.draft;
+    if (!draft?.montadora.trim() || !draft?.modelo.trim() || !draft?.versao_modelo.trim() || !draft?.ano.trim()) {
+      const firstMissing = ["montadora", "modelo", "versao_modelo", "ano"].find((field) => !draft?.[field].trim());
+      tripVehiclesList.querySelector(`[data-vehicle-field="${firstMissing}"]`)?.focus();
+      return;
+    }
+    if (vehicleEditor.isNew) tripVehicles.push({ ...draft });
+    else tripVehicles[vehicleEditor.index] = { ...draft };
+    vehicleEditor = null;
+    renderTripVehicles();
+  }
+});
+addTripVehicleButton?.addEventListener("click", () => {
+  vehicleEditor = {
+    index: tripVehicles.length,
+    isNew: true,
+    draft: { id: null, montadora: "", modelo: "", versao_modelo: "", ano: "", placa: "" },
+  };
+  renderTripVehicles();
+});
+
+function syncTripDates() {
+  if (!endDateInput) return;
+
+  const start = normalizeIsoDate(startDateInput?.value || "");
+  const end = normalizeIsoDate(endDateInput?.value || "");
+
+  if (startDateInput) startDateInput.value = start;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   endDateInput.min = start || "1900-01-01";
   endDateInput.max = "2100-12-31";
 
   if (start && end && end < start) {
     endDateInput.value = start;
   }
+<<<<<<< HEAD
+=======
+
+  endDateInput.setCustomValidity("");
+  if (endDateInput.value && (!start || endDateInput.value < start)) {
+    endDateInput.setCustomValidity("A data de término deve ser igual ou posterior à data de início.");
+  }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 
 function collectCarriedEquipmentList() {
@@ -361,10 +592,22 @@ function collectCarriedEquipmentList() {
   return result;
 }
 
+<<<<<<< HEAD
+=======
+startDateInput?.addEventListener("input", syncTripDates);
+endDateInput?.addEventListener("input", syncTripDates);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 startDateInput?.addEventListener("change", syncTripDates);
 endDateInput?.addEventListener("change", syncTripDates);
 startDateInput?.addEventListener("change", refreshAvailableUsers);
 endDateInput?.addEventListener("change", refreshAvailableUsers);
+<<<<<<< HEAD
+=======
+startDateInput?.addEventListener("input", debouncedCheckMemberConflicts);
+endDateInput?.addEventListener("input", debouncedCheckMemberConflicts);
+startDateInput?.addEventListener("change", debouncedCheckMemberConflicts);
+endDateInput?.addEventListener("change", debouncedCheckMemberConflicts);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 originInput?.addEventListener("input", () => renderCitySuggestions(originInput));
 destinationInput?.addEventListener("input", () => renderCitySuggestions(destinationInput));
@@ -406,6 +649,10 @@ membersCheckboxes?.addEventListener("change", (e) => {
   if (!user) return;
   if (checkbox.checked) selectedMembers.set(id, user);
   else selectedMembers.delete(id);
+<<<<<<< HEAD
+=======
+  debouncedCheckMemberConflicts();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 });
 
 form?.addEventListener("submit", async (e) => {
@@ -414,11 +661,19 @@ form?.addEventListener("submit", async (e) => {
   btn.disabled = true;
 
   const origin = "Piraju - SP";
+<<<<<<< HEAD
   const destination = findCity(destinationInput?.value);
   if (!origin || !destination) {
     showAlert(
       alertEl,
       "Informe origem e destino usando uma cidade válida. Formatos aceitos: Cidade - UF (Brasil) ou Cidade - País / Cidade - Estado - País (internacional).",
+=======
+  const destination = String(destinationInput?.value || "").trim();
+  if (!origin || !destination) {
+    showAlert(
+      alertEl,
+      "Informe o destino da viagem.",
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     );
     btn.disabled = false;
     if (!origin) originInput?.focus();
@@ -431,13 +686,22 @@ form?.addEventListener("submit", async (e) => {
   const payload = {
     origin,
     destination,
+<<<<<<< HEAD
     start_date: document.getElementById("start_date").value,
     end_date: document.getElementById("end_date").value,
+=======
+    start_date: normalizeIsoDate(document.getElementById("start_date").value),
+    end_date: normalizeIsoDate(document.getElementById("end_date").value),
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     reason: document.getElementById("reason").value.trim(),
     priority: document.getElementById("priority").value || "normal",
     sector: sectorSelect.value,
     member_ids: [...selectedMembers.keys()].map(Number),
     equipment_checklist,
+<<<<<<< HEAD
+=======
+    vehicles: collectTripVehicles(),
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   };
 
   try {
@@ -456,7 +720,11 @@ form?.addEventListener("submit", async (e) => {
       setLocationConsent(tripId, true);
     }
 
+<<<<<<< HEAD
     window.location.href = `trip.html?id=${res.trip.id}`;
+=======
+    window.location.href = `trip.html?id=${res.trip.id}${res.trip.status === "completed" ? "&edit=1" : ""}`;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   } catch (err) {
     showAlert(alertEl, err.message);
@@ -465,3 +733,8 @@ form?.addEventListener("submit", async (e) => {
 });
 
 init();
+<<<<<<< HEAD
+=======
+
+renderTripVehicles();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25

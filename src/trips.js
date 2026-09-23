@@ -18,6 +18,24 @@ import { renderTripReportHTML } from "./trip_report_template.js";
 export const trips = new Hono();
 trips.use("*", requireUser);
 
+<<<<<<< HEAD
+=======
+export const tripConflictRoutes = new Hono();
+tripConflictRoutes.use("*", requireUser);
+
+function validarPlaca(placa) {
+  if (!placa) return true;
+  const limpa = String(placa).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return /^[A-Z]{3}[0-9]{4}$/.test(limpa) || /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/.test(limpa);
+}
+
+function validarAnoVeiculo(ano) {
+  if (!ano) return true;
+  const valor = String(ano).trim();
+  return /^\d{4}$/.test(valor) && Number(valor) >= 1900 && Number(valor) <= new Date().getFullYear() + 1;
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 async function geocodeCity(city) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
@@ -116,6 +134,64 @@ async function findOverlappingMemberIds(db, memberIds, startDate, endDate, exclu
   return (results || []).map((row) => Number(row.id));
 }
 
+<<<<<<< HEAD
+=======
+tripConflictRoutes.post("/check-conflitos", async (c) => {
+  let body;
+  try {
+    body = await c.req.json();
+  } catch {
+    return err("JSON inválido.");
+  }
+
+  const userIds = [...new Set((Array.isArray(body.usuario_ids) ? body.usuario_ids : [])
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0))];
+  const startDate = String(body.data_inicio || "").trim();
+  const endDate = String(body.data_fim || "").trim();
+  const excludeTripId = Number(body.viagem_id) || 0;
+
+  if (!userIds.length || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < startDate) {
+    return json({ conflitos: [] });
+  }
+
+  const placeholders = userIds.map(() => "?").join(", ");
+  const { results } = await c.env.DB.prepare(`
+    SELECT DISTINCT
+      participant.user_id,
+      occupied_trip.id,
+      occupied_trip.origin,
+      occupied_trip.destination,
+      occupied_trip.start_date,
+      occupied_trip.end_date
+    FROM trips occupied_trip
+    INNER JOIN (
+      SELECT trip_id, user_id FROM trip_members
+      UNION
+      SELECT id AS trip_id, user_id FROM trips
+    ) participant ON participant.trip_id = occupied_trip.id
+    WHERE participant.user_id IN (${placeholders})
+      AND occupied_trip.status != 'cancelada'
+      AND occupied_trip.start_date <= ?
+      AND occupied_trip.end_date >= ?
+      AND (? = 0 OR occupied_trip.id != ?)
+    ORDER BY occupied_trip.start_date ASC, occupied_trip.id ASC
+  `).bind(...userIds, endDate, startDate, excludeTripId, excludeTripId).all();
+
+  return json({
+    conflitos: (results || []).map((row) => ({
+      usuario_id: Number(row.user_id),
+      viagem_conflito: {
+        id: Number(row.id),
+        titulo: `${row.origin} → ${row.destination}`,
+        data_inicio: row.start_date,
+        data_fim: row.end_date,
+      },
+    })),
+  });
+});
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 trips.get("/", async (c) => {
   const userId = c.get("userId");
   const user = c.get("user");
@@ -291,6 +367,7 @@ trips.get("/users-for-members", async (c) => {
   const excludeTripId = Number(c.req.query("exclude_trip_id")) || 0;
 
   let sql = `SELECT id, full_name, email, sector, position_title, manager_name, employee_id
+<<<<<<< HEAD
              FROM users WHERE id != ?`;
   const binds = [userId];
 
@@ -306,6 +383,10 @@ trips.get("/users-for-members", async (c) => {
     )`;
     binds.push(endDate, startDate, excludeTripId, excludeTripId);
   }
+=======
+             FROM users`;
+  const binds = [];
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   if (q) {
     sql +=
@@ -379,7 +460,11 @@ trips.post("/", async (c) => {
   }
 
   const origin = normalizeTripCityString(body.origin || "Piraju - SP") || "Piraju - SP";
+<<<<<<< HEAD
   const destination = normalizeTripCityString(body.destination || "") || "Piraju - SP";
+=======
+  const destination = String(body.destination || "").trim();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const start_date = String(body.start_date || "").trim();
   const end_date = String(body.end_date || "").trim();
   const reason = String(body.reason || "").trim();
@@ -397,12 +482,27 @@ trips.post("/", async (c) => {
         }))
         .filter((item) => item.name)
     : [];
+<<<<<<< HEAD
+=======
+  const vehicles = Array.isArray(body.vehicles) ? body.vehicles : [];
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   if (!origin || !destination) return err("Informe origem e destino.");
   if (!start_date || !end_date) return err("Informe as datas da viagem.");
   if (end_date < start_date)
     return err("Data de término deve ser >= data de início.");
   if (!reason) return err("Informe o motivo da viagem.");
+<<<<<<< HEAD
+=======
+  for (const [index, vehicle] of vehicles.entries()) {
+    if (!String(vehicle?.montadora || '').trim()) return err(`Veículo ${index + 1}: informe a montadora.`);
+    if (!String(vehicle?.modelo || '').trim()) return err(`Veículo ${index + 1}: informe o modelo.`);
+    if (!String(vehicle?.versao_modelo || '').trim()) return err(`Veículo ${index + 1}: informe a versão do modelo.`);
+    if (!validarAnoVeiculo(vehicle?.ano)) return err(`Veículo ${index + 1}: informe um ano válido.`);
+    if (!validarPlaca(vehicle?.placa)) return err(`Veículo ${index + 1}: placa inválida. Use AAA-0000 ou AAA0A00.`);
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   const memberIdsForValidation = Array.isArray(memberIds)
     ? memberIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
@@ -419,6 +519,7 @@ trips.post("/", async (c) => {
 
   const status = computeStatus({ start_date, end_date, status: "planned" });
   const coordinates = await geocodeTripCities(origin, destination);
+<<<<<<< HEAD
   if (
     coordinates.origin_lat === null ||
     coordinates.origin_lng === null ||
@@ -427,6 +528,8 @@ trips.post("/", async (c) => {
   ) {
     return err("Origem e destino devem ser cidades válidas (formato Cidade - UF para o Brasil, ou Cidade - País / Cidade - Estado - País para o exterior).");
   }
+=======
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const result = await c.env.DB.prepare(
     `INSERT INTO trips (user_id, origin, destination, start_date, end_date, reason, sector, status, priority,
                         origin_lat, origin_lng, destination_lat, destination_lng)
@@ -476,6 +579,13 @@ trips.post("/", async (c) => {
       .bind(JSON.stringify(equipmentChecklist), tripId)
       .run();
   }
+<<<<<<< HEAD
+=======
+  for (const vehicle of vehicles) {
+    await c.env.DB.prepare(`INSERT INTO vehicles (trip_id, montadora, modelo, versao_modelo, ano, placa, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .bind(tripId, String(vehicle.montadora || '').trim(), String(vehicle.modelo || '').trim(), String(vehicle.versao_modelo || '').trim() || null, String(vehicle.ano || '').trim() || null, String(vehicle.placa || '').trim() || null, user.id).run();
+  }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   // Always include the trip creator as a trip member so they can be
   // selected as responsible for tasks.
@@ -552,6 +662,7 @@ trips.get("/:id", async (c) => {
 trips.put("/:id", async (c) => {
   const id = Number(c.req.param("id"));
   const userId = c.get("userId");
+<<<<<<< HEAD
   const trip = await c.env.DB.prepare(
     "SELECT * FROM trips WHERE id = ? AND user_id = ?",
   )
@@ -559,6 +670,18 @@ trips.put("/:id", async (c) => {
     .first();
   if (!trip) return err("Viagem não encontrada.", 404);
   if (trip.status === "completed")
+=======
+  const viewer = c.get("user");
+  const trip = await getAccessibleTrip(c, id);
+  if (!trip) return err("Viagem não encontrada.", 404);
+  const canEditCompletedTrip =
+    c.req.header("X-Trip-Edit-Mode") === "1" ||
+    viewer?.role === "admin" ||
+    viewer?.role === "admin_master" ||
+    Number(trip.user_id) === Number(viewer?.id) ||
+    Boolean(getLedSector(viewer));
+  if (trip.status === "completed" && !canEditCompletedTrip)
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     return err("Viagem concluída não pode ser editada.");
 
   let body;
@@ -569,7 +692,11 @@ trips.put("/:id", async (c) => {
   }
 
   const origin = normalizeTripCityString(body.origin ?? trip.origin ?? "Piraju - SP") || "Piraju - SP";
+<<<<<<< HEAD
   const destination = normalizeTripCityString(body.destination ?? trip.destination ?? "") || "Piraju - SP";
+=======
+  const destination = String(body.destination ?? trip.destination ?? "").trim();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const start_date = String(body.start_date ?? trip.start_date).trim();
   const end_date = String(body.end_date ?? trip.end_date).trim();
   const reason = String(body.reason ?? trip.reason).trim();
@@ -577,6 +704,13 @@ trips.put("/:id", async (c) => {
   const priority = ["low", "normal", "high"].includes(body.priority)
     ? body.priority
     : trip.priority || "normal";
+<<<<<<< HEAD
+=======
+  const status = computeStatus({ ...trip, start_date, end_date });
+  const citiesChanged =
+    String(trip.origin ?? "") !== origin ||
+    String(trip.destination ?? "") !== destination;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const equipmentChecklist = Array.isArray(body.equipment_checklist)
     ? body.equipment_checklist
         .map((item) => ({
@@ -586,11 +720,28 @@ trips.put("/:id", async (c) => {
         }))
         .filter((item) => item.name)
     : null;
+<<<<<<< HEAD
+=======
+  const vehicles = Array.isArray(body.vehicles) ? body.vehicles : null;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   if (!origin || !destination || !start_date || !end_date || !reason) {
     return err("Preencha todos os campos obrigatórios.");
   }
   if (end_date < start_date) return err("Data de término inválida.");
+<<<<<<< HEAD
+=======
+  if (vehicles) {
+    for (const [index, vehicle] of vehicles.entries()) {
+      if (!String(vehicle?.montadora || '').trim()) return err(`Veículo ${index + 1}: informe a montadora.`);
+      if (!String(vehicle?.modelo || '').trim()) return err(`Veículo ${index + 1}: informe o modelo.`);
+      if (!String(vehicle?.versao_modelo || '').trim()) return err(`Veículo ${index + 1}: informe a versão do modelo.`);
+      if (!validarAnoVeiculo(vehicle?.ano)) return err(`Veículo ${index + 1}: informe um ano válido.`);
+      if (!validarPlaca(vehicle?.placa)) return err(`Veículo ${index + 1}: placa inválida. Use AAA-0000 ou AAA0A00.`);
+    }
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   const memberIdsForValidation = Array.isArray(body.member_ids)
     ? body.member_ids.map(Number).filter((memberId) => Number.isInteger(memberId) && memberId > 0)
@@ -602,6 +753,7 @@ trips.put("/:id", async (c) => {
     end_date,
     id,
   );
+<<<<<<< HEAD
   if (overlappingMemberIds.length) {
     return err("Um ou mais integrantes já estão em outra viagem neste período.");
   }
@@ -609,6 +761,8 @@ trips.put("/:id", async (c) => {
   const status = computeStatus({ start_date, end_date, status: trip.status });
   const citiesChanged =
     origin !== trip.origin || destination !== trip.destination;
+=======
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const hasMissingCoordinates =
     trip.origin_lat == null ||
     trip.origin_lng == null ||
@@ -622,6 +776,7 @@ trips.put("/:id", async (c) => {
         destination_lat: trip.destination_lat ?? null,
         destination_lng: trip.destination_lng ?? null,
       };
+<<<<<<< HEAD
   if (
     coordinates.origin_lat === null ||
     coordinates.origin_lng === null ||
@@ -630,6 +785,8 @@ trips.put("/:id", async (c) => {
   ) {
     return err("Origem e destino devem ser cidades válidas (formato Cidade - UF para o Brasil, ou Cidade - País / Cidade - Estado - País para o exterior).");
   }
+=======
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const changes = {};
   for (const [field, value] of Object.entries({
     origin,
@@ -695,6 +852,22 @@ trips.put("/:id", async (c) => {
       .bind(JSON.stringify(equipmentChecklist), id)
       .run();
   }
+<<<<<<< HEAD
+=======
+  if (vehicles) {
+    for (const vehicle of vehicles) {
+      const vehicleId = Number(vehicle.id || 0);
+      if (vehicleId) {
+        await c.env.DB.prepare(`UPDATE vehicles SET montadora = ?, modelo = ?, versao_modelo = ?, ano = ?, placa = ? WHERE id = ? AND trip_id = ?`)
+          .bind(String(vehicle.montadora || '').trim(), String(vehicle.modelo || '').trim(), String(vehicle.versao_modelo || '').trim() || null, String(vehicle.ano || '').trim() || null, String(vehicle.placa || '').trim() || null, vehicleId, id).run();
+      } else {
+        await c.env.DB.prepare(`INSERT INTO vehicles (trip_id, montadora, modelo, versao_modelo, ano, placa, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+          .bind(id, String(vehicle.montadora || '').trim(), String(vehicle.modelo || '').trim(), String(vehicle.versao_modelo || '').trim() || null, String(vehicle.ano || '').trim() || null, String(vehicle.placa || '').trim() || null, userId).run();
+      }
+    }
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   return json({
     success: true,

@@ -1,5 +1,9 @@
 import { api, showAlert, hideAlert, formatDateBR } from './api.js';
 import { escapeHtml } from './layout.js';
+<<<<<<< HEAD
+=======
+import { vehicleIdentity } from './vehicle-identity.js';
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 export function prioridadeCor(prioridade) {
   const p = Number(prioridade || 0);
@@ -8,6 +12,16 @@ export function prioridadeCor(prioridade) {
   return { bg: '#dcfce7', text: '#166534', border: '#bbf7d0', label: `P${p}` };
 }
 
+<<<<<<< HEAD
+=======
+function prioridadeLabel(prioridade) {
+  const p = Number(prioridade || 1);
+  if (p === 1) return 'Alta (P1)';
+  if (p <= 3) return 'Média (P2 e P3)';
+  return 'Baixa (P4 em diante)';
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 export function statusDemandaBadge(status) {
   const map = {
     pendente: { cls: 'badge badge-planned', label: 'Pendente' },
@@ -18,6 +32,42 @@ export function statusDemandaBadge(status) {
   return `<span class="${cfg.cls}">${cfg.label}</span>`;
 }
 
+<<<<<<< HEAD
+=======
+function perguntarVeiculoCompativel() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay demanda-compatibilidade-overlay';
+    overlay.innerHTML = `
+      <div class="modal demanda-compatibilidade-modal" role="dialog" aria-modal="true" aria-labelledby="demanda-compatibilidade-titulo">
+        <div class="modal-header">
+          <h2 id="demanda-compatibilidade-titulo">Veículo compatível?</h2>
+          <button type="button" class="modal-close" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted">Deseja preencher os dados do veículo, projeto e tipo de trabalho automaticamente com base na demanda selecionada?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary compatibilidade-nao">Não, preencher manualmente</button>
+          <button type="button" class="btn btn-primary compatibilidade-sim">Sim, preencher automaticamente</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(overlay);
+    const finish = (compatible) => {
+      overlay.remove();
+      resolve(compatible);
+    };
+    overlay.querySelector('.compatibilidade-sim').addEventListener('click', () => finish(true));
+    overlay.querySelector('.compatibilidade-nao').addEventListener('click', () => finish(false));
+    overlay.querySelector('.modal-close').addEventListener('click', () => finish(false));
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) finish(false);
+    });
+  });
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 function validarPlaca(placa) {
   if (!placa) return true;
   const limpa = String(placa).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -31,11 +81,22 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
   let veiculos = [
     { montadora: '', modelo: '', versao_modelo: '', ano: '', placa: '', tipo_projeto: '', atividades: [] }
   ];
+<<<<<<< HEAD
+=======
+  let tripVehicles = [];
+  let selectedTripVehicleId = 'outro';
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   let atividadesModeloCache = [];
   let projetosCache = [];
   let workTypesCache = [];
   let demandasExistentes = [];
   let tipoTrabalhoSelecionado = '';
+<<<<<<< HEAD
+=======
+  const requestedVehicleId = fullPage
+    ? new URLSearchParams(window.location.search).get('vehicle_id')
+    : '';
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   try {
     const res = await api.demandas.listarViagem(viagemId);
@@ -70,6 +131,15 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
     const veiculosHtml = veiculos.map((v, idx) => renderVeiculoCard(v, idx)).join('');
     const tipoProjetoGlobal = veiculos[0]?.tipo_projeto || '';
     const tipoTrabalhoGlobal = tipoTrabalhoSelecionado;
+<<<<<<< HEAD
+=======
+    const tripVehicleOptions = tripVehicles.length
+      ? tripVehicles.map((vehicle) => {
+          const vehicleName = [vehicle.montadora, vehicle.modelo, vehicle.placa].filter(Boolean).join(' · ') || `Veículo ${vehicle.id}`;
+          return `<option value="${vehicle.id}" ${Number(selectedTripVehicleId) === Number(vehicle.id) ? 'selected' : ''}>${escapeHtml(vehicleName)}</option>`;
+        }).join('')
+      : '';
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     const projetosHtml = projetosCache.length
       ? projetosCache.map(p => `<option value="${escapeHtml(p.name)}" ${p.name === tipoProjetoGlobal ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')
       : '<option value="">Nenhum projeto cadastrado para o setor</option>';
@@ -134,6 +204,16 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
         </div>
         <div class="${fullPage ? 'panel-body' : 'modal-body'}">
           <div style="margin-bottom: 12px;">
+<<<<<<< HEAD
+=======
+            <label for="demanda-veiculo-selecionado">Veículo para a demanda</label>
+            <select id="demanda-veiculo-selecionado">
+              <option value="outro" ${selectedTripVehicleId === 'outro' ? 'selected' : ''}>Outro veículo</option>
+              ${tripVehicleOptions}
+            </select>
+          </div>
+          <div style="margin-bottom: 12px;">
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
             <label for="demanda-tipo-trabalho">Tipo de trabalho</label>
             <select id="demanda-tipo-trabalho" ${workTypesCache.length ? '' : 'disabled'}>
               <option value="">Selecione um tipo de trabalho...</option>
@@ -168,6 +248,42 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
       veiculos.forEach(v => v.tipo_projeto = val);
     });
 
+<<<<<<< HEAD
+=======
+    modal.querySelector('#demanda-veiculo-selecionado')?.addEventListener('change', (e) => {
+      const value = e.target.value;
+      selectedTripVehicleId = value || 'outro';
+
+      if (selectedTripVehicleId === 'outro') {
+        veiculos = [{
+          montadora: '',
+          modelo: '',
+          versao_modelo: '',
+          ano: '',
+          placa: '',
+          tipo_projeto: veiculos[0]?.tipo_projeto || '',
+          atividades: veiculos[0]?.atividades || []
+        }];
+        render();
+        return;
+      }
+
+      const tripVehicle = tripVehicles.find((vehicle) => Number(vehicle.id) === Number(selectedTripVehicleId));
+      if (tripVehicle) {
+        veiculos = [{
+          montadora: tripVehicle.montadora || '',
+          modelo: tripVehicle.modelo || '',
+          versao_modelo: tripVehicle.versao_modelo || '',
+          ano: tripVehicle.ano || '',
+          placa: tripVehicle.placa || '',
+          tipo_projeto: veiculos[0]?.tipo_projeto || '',
+          atividades: veiculos[0]?.atividades || []
+        }];
+      }
+      render();
+    });
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     modal.querySelector('#demanda-tipo-trabalho')?.addEventListener('change', (e) => {
       tipoTrabalhoSelecionado = e.target.value.trim();
     });
@@ -232,12 +348,22 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
 
   function renderVeiculoCard(v, idx) {
     const totalAtiv = v.atividades.length;
+<<<<<<< HEAD
+=======
+    const isExistingVehicleSelected = selectedTripVehicleId && selectedTripVehicleId !== 'outro';
+    const selectedTripVehicle = tripVehicles.find((vehicle) => Number(vehicle.id) === Number(selectedTripVehicleId));
+    const selectedVehicleLabel = selectedTripVehicle
+      ? `${selectedTripVehicle.montadora || 'Veículo'} ${selectedTripVehicle.modelo ? `· ${selectedTripVehicle.modelo}` : ''} ${selectedTripVehicle.placa ? `· ${selectedTripVehicle.placa}` : ''}`.trim()
+      : '';
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     return `
       <div class="demanda-veiculo-card" data-idx="${idx}" style="border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;background:var(--panel-bg);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <h3 style="margin:0;font-size:1rem;">Veículo ${idx + 1}${totalAtiv ? ` · <span class="text-muted" style="font-size:0.85rem;font-weight:400;">${totalAtiv} atividade(s)</span>` : ''}</h3>
           <button type="button" class="btn btn-danger btn-sm btn-remover-veiculo" data-idx="${idx}" ${veiculos.length <= 1 ? 'disabled' : ''}>Remover</button>
         </div>
+<<<<<<< HEAD
         <div class="form-grid two">
           <div><label>Montadora *</label><input data-campo="montadora" data-idx="${idx}" value="${escapeHtml(v.montadora)}" placeholder="Ex: Volkswagen"/></div>
           <div><label>Modelo *</label><input data-campo="modelo" data-idx="${idx}" value="${escapeHtml(v.modelo)}" placeholder="Ex: T-Cross"/></div>
@@ -245,6 +371,22 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
           <div><label>Ano</label><input data-campo="ano" data-idx="${idx}" type="number" min="1900" max="2027" step="1" inputmode="numeric" value="${escapeHtml(v.ano)}" placeholder="Ex: 2024"/></div>
           <div style="grid-column:1/-1;"><label>Placa (formato AAA-0000 ou AAA0A00)</label><input data-campo="placa" data-idx="${idx}" value="${escapeHtml(v.placa)}" placeholder="Ex: ABC-1D23" class="placa-input"/></div>
         </div>
+=======
+
+        ${isExistingVehicleSelected ? `
+          <div class="text-muted" style="margin-bottom:12px; font-size:0.86rem;">
+            Demanda vinculada ao veículo cadastrado na viagem: <strong style="color:var(--text);">${escapeHtml(selectedVehicleLabel || 'Veículo selecionado')}</strong>
+          </div>
+        ` : `
+          <div class="form-grid two">
+            <div><label>Montadora *</label><input data-campo="montadora" data-idx="${idx}" value="${escapeHtml(v.montadora)}" placeholder="Ex: Volkswagen"/></div>
+            <div><label>Modelo *</label><input data-campo="modelo" data-idx="${idx}" value="${escapeHtml(v.modelo)}" placeholder="Ex: T-Cross"/></div>
+            <div><label>Versão modelo</label><input data-campo="versao_modelo" data-idx="${idx}" value="${escapeHtml(v.versao_modelo)}" placeholder="Ex: Comfortline 200 TSI"/></div>
+            <div><label>Ano</label><input data-campo="ano" data-idx="${idx}" type="number" min="1900" max="2027" step="1" inputmode="numeric" value="${escapeHtml(v.ano)}" placeholder="Ex: 2024"/></div>
+            <div style="grid-column:1/-1;"><label>Placa (formato AAA-0000 ou AAA0A00)</label><input data-campo="placa" data-idx="${idx}" value="${escapeHtml(v.placa)}" placeholder="Ex: ABC-1D23" class="placa-input"/></div>
+          </div>
+        `}
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         <div style="margin-top:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <strong style="font-size:0.9rem;">Atividades de prioridade</strong>
@@ -262,9 +404,15 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
       const pc = prioridadeCor(a.prioridade);
       const status = a.status === 'concluida' ? 'Concluída' : a.status === 'em_andamento' ? 'Em andamento' : 'Pendente';
       return `
+<<<<<<< HEAD
         <div class="demanda-ativ-row" style="display:grid;grid-template-columns:1fr 90px 110px;gap:8px;margin-bottom:6px;align-items:center;">
           <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">${escapeHtml(a.atividade_descricao || 'Atividade existente')}</div>
           <span style="display:inline-flex;justify-content:center;padding:4px 8px;border-radius:999px;background:${pc.bg};color:${pc.text};border:1px solid ${pc.border};font-size:0.72rem;font-weight:700;">P${a.prioridade}</span>
+=======
+        <div class="demanda-ativ-row" style="display:grid;grid-template-columns:1fr 180px 110px;gap:8px;margin-bottom:6px;align-items:center;">
+          <div style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">${escapeHtml(a.atividade_descricao || 'Atividade existente')}</div>
+          <span style="display:inline-flex;justify-content:center;padding:4px 8px;border-radius:999px;background:${pc.bg};color:${pc.text};border:1px solid ${pc.border};font-size:0.72rem;font-weight:700;">${escapeHtml(prioridadeLabel(a.prioridade))}</span>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
           <span class="text-muted" style="font-size:0.75rem;">${status}</span>
         </div>`;
     }
@@ -272,12 +420,24 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
       `<option value="${am.id}" ${Number(a.atividade_modelo_id) === Number(am.id) ? 'selected' : ''}>${escapeHtml(am.tipo_projeto ? `[${am.tipo_projeto}] ` : '')}${escapeHtml(am.descricao)}</option>`
     ).join('');
     return `
+<<<<<<< HEAD
       <div class="demanda-ativ-row" style="display:grid;grid-template-columns:1fr 90px 40px;gap:8px;margin-bottom:6px;align-items:center;">
+=======
+      <div class="demanda-ativ-row" style="display:grid;grid-template-columns:1fr 180px 40px;gap:8px;margin-bottom:6px;align-items:center;">
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         <select data-idx="${idx}" data-aidx="${aidx}" data-campo="atividade_modelo_id" class="ativ-select">
           <option value="">Selecione a atividade…</option>
           ${opcoes}
         </select>
+<<<<<<< HEAD
         <input type="number" min="1" data-idx="${idx}" data-aidx="${aidx}" data-campo="prioridade" value="${a.prioridade || 1}" placeholder="P" title="Prioridade (1 maior, 2 média, 3+ menor)"/>
+=======
+        <select data-idx="${idx}" data-aidx="${aidx}" data-campo="prioridade" title="Prioridade da demanda">
+          <option value="1" ${Number(a.prioridade || 1) === 1 ? 'selected' : ''}>Alta (P1)</option>
+          <option value="2" ${Number(a.prioridade || 1) === 2 || Number(a.prioridade || 1) === 3 ? 'selected' : ''}>Média (P2 e P3)</option>
+          <option value="4" ${Number(a.prioridade || 1) >= 4 ? 'selected' : ''}>Baixa (P4 em diante)</option>
+        </select>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         <button type="button" class="btn btn-danger btn-sm btn-del-ativ" data-idx="${idx}" data-aidx="${aidx}" title="Remover atividade">✕</button>
       </div>`;
   }
@@ -315,12 +475,20 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
         veiculos[idx].atividades[aidx].atividade_modelo_id = sel.value ? Number(sel.value) : '';
       });
     });
+<<<<<<< HEAD
     modal.querySelectorAll('input[data-campo="prioridade"]').forEach(inp => {
       inp.addEventListener('input', () => {
         const idx = Number(inp.dataset.idx);
         const aidx = Number(inp.dataset.aidx);
         const val = Number(inp.value) || 0;
         veiculos[idx].atividades[aidx].prioridade = val > 0 ? val : 1;
+=======
+    modal.querySelectorAll('select[data-campo="prioridade"]').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const idx = Number(sel.dataset.idx);
+        const aidx = Number(sel.dataset.aidx);
+        veiculos[idx].atividades[aidx].prioridade = Number(sel.value) || 1;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       });
     });
     modal.querySelectorAll('.btn-del-ativ').forEach(btn => {
@@ -344,6 +512,52 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
       else alert(message);
       return;
     }
+<<<<<<< HEAD
+=======
+
+    if (selectedTripVehicleId && selectedTripVehicleId !== 'outro') {
+      const vehicleId = Number(selectedTripVehicleId);
+      if (!vehicleId) {
+        if (alertEl) showAlert(alertEl, 'Selecione um veículo válido para a demanda.');
+        else alert('Selecione um veículo válido para a demanda.');
+        return;
+      }
+      try {
+        const promises = [];
+        for (const v of veiculos) {
+          const atividades = Array.isArray(v.atividades) ? v.atividades.filter(a => !a.existente) : [];
+          if (!atividades.length) continue;
+          for (const atividade of atividades) {
+            const atividadeId = Number(atividade.atividade_modelo_id || 0);
+            const prioridade = Number(atividade.prioridade || 1);
+            if (!atividadeId) continue;
+            promises.push(api.createVehicleDemand(viagemId, vehicleId, {
+              tipo_projeto,
+              tipo_trabalho,
+              atividade_modelo_id: atividadeId,
+              prioridade,
+            }));
+          }
+        }
+        if (!promises.length) {
+          if (alertEl) showAlert(alertEl, 'Adicione pelo menos uma atividade para o veículo selecionado.');
+          else alert('Adicione pelo menos uma atividade para o veículo selecionado.');
+          return;
+        }
+        await Promise.all(promises);
+        if (alertEl) showAlert(alertEl, 'Demandas salvas com sucesso! Os integrantes foram notificados.', 'success');
+        veiculoEdicaoId = null;
+        closeForm();
+        if (typeof onCriada === 'function') onCriada([]);
+        return;
+      } catch (err) {
+        if (alertEl) showAlert(alertEl, err.message || 'Erro ao salvar demandas.');
+        else alert(err.message || 'Erro ao salvar demandas.');
+        return;
+      }
+    }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     const payload = {
       tipo_projeto,
       tipo_trabalho,
@@ -379,6 +593,41 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
 
   if (!fullPage) document.body.appendChild(modal);
 
+<<<<<<< HEAD
+=======
+  try {
+    const response = await api.listVehicles(viagemId);
+    tripVehicles = Array.isArray(response?.vehicles) ? response.vehicles : [];
+    const requestedVehicle = tripVehicles.find((vehicle) => String(vehicle.id) === String(requestedVehicleId));
+    if (requestedVehicle) {
+      selectedTripVehicleId = String(requestedVehicle.id);
+      veiculos[0] = {
+        montadora: requestedVehicle.montadora || '',
+        modelo: requestedVehicle.modelo || '',
+        versao_modelo: requestedVehicle.versao_modelo || '',
+        ano: requestedVehicle.ano || '',
+        placa: requestedVehicle.placa || '',
+        tipo_projeto: veiculos[0]?.tipo_projeto || '',
+        atividades: veiculos[0]?.atividades || []
+      };
+    } else if (tripVehicles.length && selectedTripVehicleId === 'outro') {
+      selectedTripVehicleId = String(tripVehicles[0].id);
+      const firstVehicle = tripVehicles[0];
+      veiculos[0] = {
+        montadora: firstVehicle.montadora || '',
+        modelo: firstVehicle.modelo || '',
+        versao_modelo: firstVehicle.versao_modelo || '',
+        ano: firstVehicle.ano || '',
+        placa: firstVehicle.placa || '',
+        tipo_projeto: veiculos[0]?.tipo_projeto || '',
+        atividades: veiculos[0]?.atividades || []
+      };
+    }
+  } catch (e) {
+    tripVehicles = [];
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const [atividadesResult, projetosResult] = await Promise.allSettled([
     api.demandas.atividadesModelo(),
     api.leaderProjects.list()
@@ -395,7 +644,10 @@ export async function abrirModalDemandasLider(viagemId, { onCriada, alertEl, ful
 
 export function renderQuadroDemandasIntegrante(container, demandas, tripId, { user, onStatusChange } = {}) {
   if (!container) return;
+<<<<<<< HEAD
   container.id = 'demandas';
+=======
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   container.innerHTML = '';
 
   const todas = (Array.isArray(demandas) ? demandas : [])
@@ -415,6 +667,7 @@ export function renderQuadroDemandasIntegrante(container, demandas, tripId, { us
     return;
   }
 
+<<<<<<< HEAD
   let totalPendentes = 0;
   let totalAndamento = 0;
   let totalConcluidas = 0;
@@ -469,6 +722,77 @@ export function renderQuadroDemandasIntegrante(container, demandas, tripId, { us
       <span class="badge in_progress">Em andamento: ${totalAndamento}</span>
       <span class="badge completed">Concluídas: ${totalConcluidas}</span>
     </div>`;
+=======
+  const vehiclesByKey = new Map();
+
+  todas.forEach((demanda) => {
+    (demanda.veiculos || []).forEach((vehicle) => {
+      const vehicleKey = vehicleIdentity(vehicle);
+
+      if (!vehiclesByKey.has(vehicleKey)) {
+        vehiclesByKey.set(vehicleKey, {
+          vehicle,
+          projects: new Map(),
+        });
+      }
+
+      const groupedVehicle = vehiclesByKey.get(vehicleKey);
+      const projectName = String(demanda.tipo_projeto || 'Sem projeto').trim() || 'Sem projeto';
+      if (!groupedVehicle.projects.has(projectName)) groupedVehicle.projects.set(projectName, []);
+      groupedVehicle.projects.get(projectName).push(...(vehicle.atividades || []));
+    });
+  });
+
+  const statusLabel = (status) => ({
+    pendente: 'Pendente',
+    em_andamento: 'Em andamento',
+    concluida: 'Concluída',
+  }[status] || 'Pendente');
+
+  const cards = [...vehiclesByKey.values()].map(({ vehicle, projects }) => {
+    const projectsHtml = [...projects.entries()].map(([projectName, activities]) => {
+      const activitiesSorted = [...activities].sort((a, b) => Number(a.prioridade || 1) - Number(b.prioridade || 1));
+      const rows = activitiesSorted.map((activity) => {
+        const priority = prioridadeCor(activity.prioridade || 1);
+        const completed = activity.status === 'concluida';
+        const completedMeta = completed && (activity.concluida_nome || activity.concluida_em)
+          ? `<div class="demanda-completed-meta">${activity.concluida_nome ? escapeHtml(activity.concluida_nome) : ''}${activity.concluida_nome && activity.concluida_em ? ' · ' : ''}${activity.concluida_em ? formatDateBR(String(activity.concluida_em).slice(0, 10)) : ''}</div>`
+          : '';
+
+        return `
+          <div class="vehicle-demand-row demanda-integrante-row">
+            <span class="demanda-priority-pill" style="background:${priority.bg};color:${priority.text};border-color:${priority.border};">${priority.label}</span>
+            <strong class="${completed ? 'demanda-activity-completed' : ''}">${escapeHtml(activity.atividade_descricao || '—')}</strong>
+            <span class="demanda-status-readonly ${completed ? 'is-completed' : ''}">${statusLabel(activity.status)}${completedMeta}</span>
+          </div>`;
+      }).join('');
+
+      return `
+        <section class="vehicle-demand-project">
+          <h4>${escapeHtml(projectName)} <span>${activitiesSorted.length}</span></h4>
+          <div class="vehicle-demand-list">${rows || '<div class="vehicle-demand-empty">Sem atividades cadastradas.</div>'}</div>
+        </section>`;
+    }).join('');
+
+    const vehicleLabel = [
+      vehicle.montadora,
+      vehicle.modelo,
+      vehicle.versao_modelo,
+      vehicle.ano,
+      vehicle.placa,
+    ].filter((value) => String(value ?? '').trim()).join(' · ') || 'Veículo';
+
+    return `
+      <article class="vehicle-card demanda-integrante-vehicle-card">
+        <div class="vehicle-card-header">
+          <div class="vehicle-card-heading">
+            <strong>${escapeHtml(vehicleLabel)}</strong>
+          </div>
+        </div>
+        <div class="vehicle-demands">${projectsHtml}</div>
+      </article>`;
+  }).join('');
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   container.innerHTML = `
     <div class="panel" style="margin-top:0;">
@@ -477,7 +801,10 @@ export function renderQuadroDemandasIntegrante(container, demandas, tripId, { us
         <button type="button" class="panel-toggle" data-toggle="demandas-panel" aria-expanded="true" aria-label="Minimizar quadro de demandas" title="Minimizar quadro de demandas">▼</button>
       </div>
       <div class="panel-body panel-content demandas-panel-content">
+<<<<<<< HEAD
         ${resumoHtml}
+=======
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         ${cards}
       </div>
     </div>`;
@@ -487,12 +814,40 @@ export function renderQuadroDemandasIntegrante(container, demandas, tripId, { us
 
 }
 
+<<<<<<< HEAD
+=======
+function renderDemandasGrid(demandas) {
+  const rows = demandas.flatMap((demanda) => (demanda.veiculos || []).flatMap((vehicle) =>
+    (vehicle.atividades || []).map((activity) => {
+      const priority = prioridadeCor(activity.prioridade || 1);
+      return `<tr>
+        <td>${escapeHtml(demanda.tipo_projeto || '—')}</td>
+        <td><span style="display:inline-flex;padding:2px 8px;border-radius:999px;background:${priority.bg};color:${priority.text};border:1px solid ${priority.border};font-size:0.75rem;font-weight:700;">${priority.label}</span></td>
+        <td>${escapeHtml(activity.atividade_descricao || '—')}</td>
+        <td>${statusDemandaBadge(activity.status)}</td>
+      </tr>`;
+    }),
+  ));
+
+  return `<div class="table-scroll">
+    <table class="data demandas-grid-table">
+      <thead><tr><th>Projeto</th><th>Prioridade</th><th>Atividade</th><th>Status</th></tr></thead>
+      <tbody>${rows.join('') || '<tr><td colspan="4" class="empty-state">Nenhuma atividade de demanda cadastrada.</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 function wireDemandasPanelToggle(container) {
   if (!container) return;
   const btn = container.querySelector('.panel-toggle[data-toggle="demandas-panel"]');
   const body = container.querySelector('.panel-content');
   if (!btn || !body) return;
+<<<<<<< HEAD
   btn.addEventListener('click', () => {
+=======
+  const toggle = () => {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     const isCollapsed = btn.classList.toggle('collapsed');
     body.classList.toggle('collapsed', isCollapsed);
     btn.setAttribute('aria-expanded', String(!isCollapsed));
@@ -502,7 +857,20 @@ function wireDemandasPanelToggle(container) {
       const key = `trip_demandas_panel_collapsed_v2`;
       localStorage.setItem(key, isCollapsed ? '1' : '0');
     } catch (e) {}
+<<<<<<< HEAD
   });
+=======
+  };
+  btn.addEventListener('click', toggle);
+  const header = btn.closest('.panel-header, .panel-subheader');
+  if (header) {
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', (event) => {
+      if (event.target.closest('button, a, input, select, textarea, label')) return;
+      toggle();
+    });
+  }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   try {
     const key = `trip_demandas_panel_collapsed_v2`;
     if (localStorage.getItem(key) === '1') {
@@ -574,7 +942,11 @@ export function inserirCampoAtividadePrioridadeNoForm(formEl, trip, { onChange }
       <label style="font-weight:600;display:block;margin-bottom:8px;">Tipo de atividade que está registrando</label>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
         <label style="display:inline-flex;gap:6px;align-items:center;padding:8px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--panel-bg);">
+<<<<<<< HEAD
           <input type="radio" name="demanda_tipo_ativ" value="normal" ${temDemandas ? '' : 'checked'} /> Atividade normal realizada
+=======
+          <input type="radio" name="demanda_tipo_ativ" value="normal" ${temDemandas ? '' : 'checked'} /> Atividade nova realizada
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         </label>
         <label style="display:inline-flex;gap:6px;align-items:center;padding:8px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--panel-bg);" ${!temDemandas ? 'opacity:0.5;pointer-events:none;' : ''}>
           <input type="radio" name="demanda_tipo_ativ" value="prioridade" ${temDemandas ? 'checked' : 'disabled'} /> Atividade de prioridade (demanda do líder)
@@ -700,7 +1072,11 @@ export function inserirCampoAtividadePrioridadeNoForm(formEl, trip, { onChange }
 
   function bindGridCheckboxes() {
     wrap.querySelectorAll('input[name="demanda_ativ_cb"]').forEach(cb => {
+<<<<<<< HEAD
       cb.addEventListener('change', () => {
+=======
+      cb.addEventListener('change', async () => {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         if (cb.checked) {
           wrap.querySelectorAll('input[name="demanda_ativ_cb"]').forEach(other => {
             if (other !== cb) other.checked = false;
@@ -722,14 +1098,29 @@ export function inserirCampoAtividadePrioridadeNoForm(formEl, trip, { onChange }
           wrap.dataset.ultimoVeicId = '';
         }
 
+<<<<<<< HEAD
         if (typeof onChange === 'function') onChange(atividadesSelecionadas);
+=======
+        if (typeof onChange === 'function') {
+          const veiculoCompativel = atividadeId
+            ? await perguntarVeiculoCompativel()
+            : null;
+          onChange(atividadesSelecionadas, { veiculoCompativel });
+        }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       });
     });
   }
 
+<<<<<<< HEAD
   const summaryField = formEl.querySelector('#summary-field');
   if (summaryField) summaryField.parentNode.insertBefore(wrap, summaryField);
   else formEl.appendChild(wrap);
+=======
+  const taskFieldsSection = formEl.querySelector('#task-fields-section');
+  if (taskFieldsSection) taskFieldsSection.parentNode.insertBefore(wrap, taskFieldsSection);
+  else formEl.prepend(wrap);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   if (temDemandas) {
     bindFiltrosUmaVez();
@@ -754,8 +1145,15 @@ export function inserirCampoAtividadePrioridadeNoForm(formEl, trip, { onChange }
 
 export function extrairPayloadDemandaDoForm() {
   const wrap = document.getElementById('demanda-prioridade-wrap');
+<<<<<<< HEAD
   const tipo = document.querySelector('input[name="demanda_tipo_ativ"]:checked')?.value;
   const ehPrioridade = tipo === 'prioridade';
+=======
+  const selectedVehicleId = Number(document.getElementById('demanda_veiculo_id')?.value || 0);
+  const selectedActivityId = Number(document.getElementById('demanda_atividade_id')?.value || 0);
+  const tipo = document.querySelector('input[name="demanda_tipo_ativ"]:checked')?.value;
+  const ehPrioridade = tipo === 'prioridade' || selectedActivityId > 0;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   let atividadeId = 0;
   let veiculoId = 0;
   const cbSel = document.querySelectorAll('input[name="demanda_ativ_cb"]:checked');
@@ -769,10 +1167,19 @@ export function extrairPayloadDemandaDoForm() {
     atividadeId = Number(ids[0] || 0);
     veiculoId = Number(veicIds[0] || 0);
   }
+<<<<<<< HEAD
   return {
     eh_atividade_prioridade: ehPrioridade,
     demanda_atividade_id: ehPrioridade && atividadeId > 0 ? atividadeId : null,
     demanda_veiculo_id: ehPrioridade && veiculoId > 0 ? veiculoId : null,
+=======
+  if (selectedActivityId > 0) atividadeId = selectedActivityId;
+  if (selectedVehicleId > 0) veiculoId = selectedVehicleId;
+  return {
+    eh_atividade_prioridade: ehPrioridade,
+    demanda_atividade_id: ehPrioridade && atividadeId > 0 ? atividadeId : null,
+    demanda_veiculo_id: veiculoId > 0 ? veiculoId : null,
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   };
 }
 

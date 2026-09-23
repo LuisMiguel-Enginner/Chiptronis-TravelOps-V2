@@ -367,7 +367,11 @@ function wireDemandasPanelToggle(container) {
   const btn = container.querySelector('.panel-toggle[data-toggle="demandas-panel"]');
   const body = container.querySelector('.panel-content');
   if (!btn || !body) return;
+<<<<<<< HEAD
   btn.addEventListener('click', () => {
+=======
+  const toggle = () => {
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     const isCollapsed = btn.classList.toggle('collapsed');
     body.classList.toggle('collapsed', isCollapsed);
     btn.setAttribute('aria-expanded', String(!isCollapsed));
@@ -377,7 +381,20 @@ function wireDemandasPanelToggle(container) {
       const key = `trip_demandas_panel_collapsed_v2`;
       localStorage.setItem(key, isCollapsed ? '1' : '0');
     } catch (e) {}
+<<<<<<< HEAD
   });
+=======
+  };
+  btn.addEventListener('click', toggle);
+  const header = btn.closest('.panel-header, .panel-subheader');
+  if (header) {
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', (event) => {
+      if (event.target.closest('button, a, input, select, textarea, label')) return;
+      toggle();
+    });
+  }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   try {
     const key = `trip_demandas_panel_collapsed_v2`;
     if (localStorage.getItem(key) === '1') {
@@ -422,7 +439,11 @@ export function inserirCampoAtividadePrioridadeNoForm(formEl, trip, { onChange }
       <label style="font-weight:600;display:block;margin-bottom:8px;">Tipo de atividade que está registrando</label>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
         <label style="display:inline-flex;gap:6px;align-items:center;padding:8px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--panel-bg);">
+<<<<<<< HEAD
           <input type="radio" name="demanda_tipo_ativ" value="normal" checked /> Atividade normal realizada
+=======
+          <input type="radio" name="demanda_tipo_ativ" value="normal" checked /> Atividade nova realizada
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         </label>
         <label style="display:inline-flex;gap:6px;align-items:center;padding:8px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--panel-bg);" ${!temDemandas ? 'opacity:0.5;pointer-events:none;' : ''}>
           <input type="radio" name="demanda_tipo_ativ" value="prioridade" ${!temDemandas ? 'disabled' : ''} /> Atividade de prioridade (demanda do líder)

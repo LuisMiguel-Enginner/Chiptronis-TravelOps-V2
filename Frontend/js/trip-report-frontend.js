@@ -43,7 +43,57 @@ function parseTaskResponsibles(task) {
   return ids.map((id) => ({ id, full_name: task.responsible_full_name || "—" }));
 }
 
+<<<<<<< HEAD
 function taskIsCompleted(task) {
+=======
+function flattenDemandActivities(trip) {
+  const activities = [];
+
+  for (const demanda of Array.isArray(trip?.demandas) ? trip.demandas : []) {
+    for (const veiculo of Array.isArray(demanda.veiculos) ? demanda.veiculos : []) {
+      for (const atividade of Array.isArray(veiculo.atividades) ? veiculo.atividades : []) {
+        activities.push({
+          id: `demanda-${atividade.id || veiculo.id || demanda.id}`,
+          task_date: trip?.start_date || trip?.end_date || "",
+          start_time: "",
+          end_time: "",
+          work_type: String(demanda?.tipo_trabalho || "Demanda").trim() || "Demanda",
+          location: "",
+          summary: atividade?.atividade_descricao || atividade?.descricao || "Demanda",
+          pending_items: atividade?.status === "concluida" ? "" : "Demanda pendente",
+          status: atividade?.status || "pendente",
+          responsible_ids: [],
+          responsibles: [],
+        });
+      }
+    }
+  }
+
+  return activities;
+}
+
+function isLeaderPositionValue(position) {
+  const value = String(position || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return value === "lider" || value.startsWith("lider ") || value.startsWith("lider-");
+}
+
+function resolveCoordinatorName(trip, owner) {
+  const leaderMember = (trip.members || []).find((member) => isLeaderPositionValue(member.position_title));
+  if (leaderMember) {
+    return leaderMember.manager_name || leaderMember.full_name || owner?.manager_name || "—";
+  }
+  return owner?.manager_name || "—";
+}
+
+function taskIsCompleted(task) {
+  const explicitStatus = String(task.status || task.task_status || "").trim().toLowerCase();
+  if (["concluida", "concluído", "concluido", "completed", "done"].includes(explicitStatus)) return true;
+  if (["pendente", "pending", "incompleta", "incomplete"].includes(explicitStatus)) return false;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   return !String(task.pending_items || "").trim();
 }
 
@@ -64,7 +114,11 @@ function timeToMinutes(value) {
 }
 
 function buildTripReportModel(trip) {
+<<<<<<< HEAD
   const tasks = Array.isArray(trip.tasks) ? trip.tasks : [];
+=======
+  const tasks = [...(Array.isArray(trip.tasks) ? trip.tasks : []), ...flattenDemandActivities(trip)];
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const owner = (trip.members || []).find(
     (member) => Number(member.user_id || member.id) === Number(trip.user_id),
   );
@@ -101,6 +155,7 @@ function buildTripReportModel(trip) {
     }
     const days = [...byDate.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
+<<<<<<< HEAD
       .map(([date, dateTasks]) => ({
         date,
         slots: dateTasks.map((task) => ({
@@ -117,6 +172,28 @@ function buildTripReportModel(trip) {
           .filter(Boolean)
           .join(" / "),
       }));
+=======
+      .map(([date, dateTasks]) => {
+        const orderedTasks = [...dateTasks].sort((a, b) =>
+          String(a.start_time || "").localeCompare(String(b.start_time || "")),
+        );
+        const lunchTask = orderedTasks.find((task) =>
+          /^(refeicao|almoço|almoco)$/i.test(String(task.work_type || "").trim()),
+        );
+        const firstTask = orderedTasks.find((task) => task.start_time) || {};
+        const lastTask = [...orderedTasks].reverse().find((task) => task.end_time) || {};
+        return {
+          date,
+          mainSlots: [
+            firstTask.start_time ? firstTask.start_time : null,
+            lunchTask?.start_time || lunchTask?.end_time
+              ? `${lunchTask.start_time || "—"} – ${lunchTask.end_time || "—"}`
+              : null,
+            lastTask.end_time ? lastTask.end_time : null,
+          ].filter(Boolean),
+        };
+      });
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     return {
       fullName: user.fullName,
       tasksCompleted: user.tasks.filter(taskIsCompleted).length,
@@ -154,7 +231,11 @@ function buildTripReportModel(trip) {
       sector: trip.sector,
       priority: trip.priority || "normal",
       employee: owner?.full_name || "—",
+<<<<<<< HEAD
       coordinator: owner?.manager_name || "—",
+=======
+      coordinator: resolveCoordinatorName(trip, owner),
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       participants: memberNames.join(", ") || "—",
       objectiveMet: trip.checklist?.objective_met ?? null,
       objectiveNotes: trip.checklist?.objective_notes || "",
@@ -306,7 +387,11 @@ function renderDataHorarioUsuario(userSummaries) {
         ${u.days.map((d) => `
         <div class="day-schedule">
           <span class="day-schedule__date">${formatDate(d.date)} —</span>
+<<<<<<< HEAD
           <span class="day-schedule__slots">${d.timeSlots || "Sem horários registrados"}</span>
+=======
+          <span class="day-schedule__slots">${d.mainSlots.join(" / ") || "Sem horários registrados"}</span>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         </div>`).join("") || `<div class="empty">Nenhum horário registrado.</div>`}
       </div>
     </div>`).join("")}
@@ -454,11 +539,19 @@ function renderAssinaturas(general) {
           <div class="signature-line-simple"></div>
           <div class="signature-placeholder">${esc(general.employee || "Funcionário")}</div>
           <div class="signature-label">ASSINATURA DO INTEGRANTE</div>
+<<<<<<< HEAD
+=======
+          <div class="signature-date-field">Data: ____ / ____ / ______</div>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         </td>
         <td class="signature-block signature-block--last">
           <div class="signature-line-simple"></div>
           <div class="signature-placeholder">${esc(general.coordinator || "Coordenador")}</div>
           <div class="signature-label">ASSINATURA DO LÍDER</div>
+<<<<<<< HEAD
+=======
+          <div class="signature-date-field">Data: ____ / ____ / ______</div>
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
         </td>
       </tr>
     </table>
@@ -493,7 +586,13 @@ function longField(label, value, tone = "") {
 
 function formatDate(d) {
   if (!d) return "—";
+<<<<<<< HEAD
   const date = new Date(d);
+=======
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(d))
+    ? new Date(`${d}T00:00:00`)
+    : new Date(d);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   if (Number.isNaN(date.getTime())) return esc(String(d));
   return date.toLocaleDateString("pt-BR");
 }
@@ -773,6 +872,13 @@ function reportCSS() {
     font-weight: 600;
     letter-spacing: 0.01em;
   }
+<<<<<<< HEAD
+=======
+  .day-schedule__main-slots { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 4px 0 6px; color: #1d4ed8; font-weight: 600; }
+  .day-schedule__main-slot { white-space: nowrap; }
+  .day-schedule__task-slots { display: flex; flex-direction: column; gap: 3px; padding-left: 12px; color: #64748b; font-size: 13px; line-height: 1.45; }
+  .day-schedule__task-slot strong { color: #475569; }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   .task-card {
     background: #ffffff;
     border: 1px solid #d1d5db;
@@ -1301,6 +1407,13 @@ body {
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+<<<<<<< HEAD
+=======
+.day-schedule__main-slots { display: flex; flex-wrap: wrap; gap: 5pt 12pt; margin: 3pt 0 5pt; color: #1d4ed8; font-weight: 600; }
+.day-schedule__main-slot { white-space: nowrap; }
+.day-schedule__task-slots { display: flex; flex-direction: column; gap: 2pt; padding-left: 9pt; color: #64748b; font-size: 9pt; line-height: 1.4; }
+.day-schedule__task-slot strong { color: #475569; }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 /* ===== TASK CARDS ===== */
 .task-card {

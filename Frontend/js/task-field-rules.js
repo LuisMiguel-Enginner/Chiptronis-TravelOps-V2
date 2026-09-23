@@ -24,8 +24,35 @@ export function isLunchType(type) {
   return normalizeWorkType(type) === "refeicao";
 }
 
+<<<<<<< HEAD
 export function shouldShowVehicleFields(type) {
   return !isTravelType(type) && !isLunchType(type);
+=======
+export function filterWorkTypesForProject(types = [], projectName = "") {
+  const selectedProject = normalizeWorkType(projectName);
+  const isDiversos = selectedProject === "diversos";
+
+  return (Array.isArray(types) ? types : []).filter((type) => {
+    const normalized = normalizeWorkType(type);
+    if (isDiversos) return true;
+
+    return normalized !== "refeicao" && normalized !== "viagem";
+  });
+}
+
+const NO_VEHICLE_WORK_TYPES = new Set([
+  "almoco",
+  "refeicao",
+  "viagem",
+  "deslocamento",
+  "analise de veiculos",
+  "visita",
+  "acompanhamento",
+]);
+
+export function shouldShowVehicleFields(type) {
+  return !NO_VEHICLE_WORK_TYPES.has(normalizeWorkType(type));
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 
 export function shouldShowVehicleDetailFields(type) {

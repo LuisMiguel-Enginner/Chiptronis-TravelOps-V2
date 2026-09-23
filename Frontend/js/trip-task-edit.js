@@ -236,6 +236,7 @@ function updateTaskTypeFields() {
   if (vehicleFields) vehicleFields.classList.add("hidden-fields");
   if (vehicleDetailFields) vehicleDetailFields.classList.add("hidden-fields");
 
+<<<<<<< HEAD
   const normalizedType = String(type || "")
     .trim()
     .normalize("NFD")
@@ -248,6 +249,11 @@ function updateTaskTypeFields() {
   } else if (normalizedType === "analise de veiculos") {
     if (vehicleDetailFields) vehicleDetailFields.classList.remove("hidden-fields");
     if (vehicleDetailFields) vehicleDetailFields.classList.add("required-fields");
+=======
+  if (shouldShowVehicleDetailFields(type)) {
+    if (vehicleDetailFields) vehicleDetailFields.classList.remove("hidden-fields");
+    if (vehicleDetailFields) vehicleDetailFields.classList.add("required-fields");
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   }
 
   if (isTravelType(type) || isLunchType(type)) {

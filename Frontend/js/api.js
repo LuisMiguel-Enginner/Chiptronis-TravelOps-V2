@@ -68,6 +68,12 @@ async function request(path, options = {}) {
   const token = getToken();
 
   if (token) headers.set("Authorization", `Bearer ${token}`);
+<<<<<<< HEAD
+=======
+  if (localStorage.getItem("cto_trip_edit_mode") === "1") {
+    headers.set("X-Trip-Edit-Mode", "1");
+  }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   if (options.json !== undefined) {
     headers.set("Content-Type", "application/json");
@@ -165,6 +171,14 @@ export const api = {
     request(`/trips/${id}`, { method: "PUT", json: body }),
   deleteTrip: (id) => request(`/trips/${id}`, { method: "DELETE" }),
   completeTrip: (id) => request(`/trips/${id}/complete`, { method: "POST" }),
+<<<<<<< HEAD
+=======
+  listVehicles: (tripId) => request(`/trips/${tripId}/vehicles`),
+  createVehicle: (tripId, body) => request(`/trips/${tripId}/vehicles`, { method: "POST", json: body }),
+  createVehicleDemand: (tripId, vehicleId, body) => request(`/trips/${tripId}/vehicles/${vehicleId}/demands`, { method: "POST", json: body }),
+  updateVehicleDemand: (demandId, body) => request(`/vehicle-demands/${demandId}`, { method: "PATCH", json: body }),
+  deleteVehicleDemand: (demandId) => request(`/vehicle-demands/${demandId}`, { method: "DELETE" }),
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   taskSchedule: (date, userIds = []) => {
     const params = new URLSearchParams({ date: date || "" });
     if (userIds.length) params.set("user_ids", userIds.join(","));
@@ -187,6 +201,11 @@ export const api = {
     const qs = params.toString() ? `?${params.toString()}` : "";
     return request(`/trips/users-for-members${qs}`);
   },
+<<<<<<< HEAD
+=======
+  checkTripMemberConflicts: (body) =>
+    request("/viagens/check-conflitos", { method: "POST", json: body }),
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   workTypes: (opts = {}) => {
     const qs = [];
@@ -313,6 +332,21 @@ export const api = {
     if (payload.demanda_veiculo_id) {
       fd.append("demanda_veiculo_id", String(payload.demanda_veiculo_id));
     }
+<<<<<<< HEAD
+=======
+    if (payload.demanda_veiculo_placa_action) {
+      fd.append("demanda_veiculo_placa_action", payload.demanda_veiculo_placa_action);
+    }
+    if (payload.demanda_veiculo_placa) {
+      fd.append("demanda_veiculo_placa", payload.demanda_veiculo_placa);
+    }
+    if (payload.demanda_veiculo_placa_action) {
+      fd.append("demanda_veiculo_placa_action", payload.demanda_veiculo_placa_action);
+    }
+    if (payload.demanda_veiculo_placa) {
+      fd.append("demanda_veiculo_placa", payload.demanda_veiculo_placa);
+    }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     if (payload.custom_fields) {
       for (const [name, value] of Object.entries(payload.custom_fields)) {
         fd.append(`custom_${name}`, value || "");
@@ -324,7 +358,14 @@ export const api = {
     const token = getToken();
     const res = await fetch(`${API_BASE}/trips/${id}/tasks`, {
       method: "POST",
+<<<<<<< HEAD
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+=======
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(localStorage.getItem("cto_trip_edit_mode") === "1" ? { "X-Trip-Edit-Mode": "1" } : {}),
+      },
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       body: fd,
     });
     const data = await res.json();

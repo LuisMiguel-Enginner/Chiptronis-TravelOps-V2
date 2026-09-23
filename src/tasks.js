@@ -13,6 +13,10 @@ import {
 import { fetchTripFull } from "./trip_utils.js";
 import { notifyUsers, notifyUsersWithEmail } from "./notifications.js";
 import { logActivity } from "./activity.js";
+<<<<<<< HEAD
+=======
+import { normalizePlate } from "./vehicle-identity.js";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 async function atualizarStatusDemandaAtividade(db, demandaAtividadeId, userId) {
   if (!demandaAtividadeId) return;
@@ -50,6 +54,76 @@ async function atualizarStatusDemandaAtividade(db, demandaAtividadeId, userId) {
     .bind(novoStatus, demandaId).run();
 }
 
+<<<<<<< HEAD
+=======
+async function registrarVeiculoDaAtividadeRealizada(db, tripId, userId, dados, vehicleIdOverride = null) {
+  let vehicleId = Number(vehicleIdOverride || 0);
+  if (vehicleId > 0) {
+    const resolvedVehicle = await db.prepare(
+      'SELECT id FROM vehicles WHERE id = ? AND trip_id = ?',
+    ).bind(vehicleId, tripId).first();
+    if (!resolvedVehicle) vehicleId = 0;
+  }
+
+  const montadora = String(dados.montadora || '').trim();
+  const modelo = String(dados.modelo || '').trim();
+  if (!vehicleId && (!montadora || !modelo)) return;
+
+  const versaoModelo = String(dados.submodelo || '').trim() || null;
+  const ano = String(dados.ano || '').trim() || null;
+  const placa = normalizePlate(dados.plate) || null;
+
+  if (!vehicleId) {
+    const existente = await db.prepare(`
+      SELECT id, placa FROM vehicles
+      WHERE trip_id = ?
+        AND LOWER(TRIM(montadora)) = LOWER(TRIM(?))
+        AND LOWER(TRIM(modelo)) = LOWER(TRIM(?))
+        AND IFNULL(LOWER(TRIM(versao_modelo)), '') = IFNULL(LOWER(TRIM(?)), '')
+        AND IFNULL(TRIM(ano), '') = IFNULL(TRIM(?), '')
+        AND IFNULL(REPLACE(REPLACE(UPPER(TRIM(placa)), '-', ''), ' ', ''), '') = IFNULL(REPLACE(REPLACE(UPPER(TRIM(?)), '-', ''), ' ', ''), '')
+      LIMIT 1
+    `).bind(tripId, montadora, modelo, versaoModelo, ano, placa).first();
+
+    vehicleId = existente?.id || 0;
+
+    if (!vehicleId) {
+      vehicleId = (await db.prepare(`
+        INSERT INTO vehicles (trip_id, montadora, modelo, versao_modelo, ano, placa, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(tripId, montadora, modelo, versaoModelo, ano, placa, userId).run()).meta.last_row_id;
+    }
+  }
+
+  const tipoTrabalho = String(dados.workType || '').trim() || null;
+  let tipoProjeto = String(dados.projectName || '').trim() || 'Atividade realizada';
+  if (dados.projectId && Number(dados.projectId) > 0) {
+    const project = await db.prepare('SELECT name FROM leader_projects WHERE id = ?').bind(Number(dados.projectId)).first();
+    if (project?.name) tipoProjeto = project.name;
+  }
+
+  const demandaExistente = await db.prepare(`
+    SELECT id FROM vehicle_demands
+    WHERE vehicle_id = ?
+      AND trip_id = ?
+      AND atividade = ?
+      AND tipo_projeto = ?
+    LIMIT 1
+  `).bind(vehicleId, tripId, String(dados.summary || '').trim(), tipoProjeto).first();
+
+  if (demandaExistente) return;
+
+  await db.prepare(`
+    INSERT INTO vehicle_demands (vehicle_id, trip_id, tipo_projeto, tipo_trabalho, atividade_modelo_id, atividade, prioridade, status, created_by)
+    VALUES (?, ?, ?, ?, NULL, ?, 1, 'concluida', ?)
+  `).bind(vehicleId, tripId, tipoProjeto, tipoTrabalho, dados.summary, userId).run();
+}
+
+async function atualizarStatusDemandaVeiculo(db, demandaId) {
+  await db.prepare("UPDATE vehicle_demands SET status = 'concluida' WHERE id = ?").bind(demandaId).run();
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 async function notificarLiderDemandaConcluida(db, trip, atividade, userId, env) {
   const lider = await db.prepare(`
     SELECT id FROM users
@@ -77,6 +151,22 @@ async function notificarLiderDemandaConcluida(db, trip, atividade, userId, env) 
 
 export const taskRoutes = new Hono();
 
+<<<<<<< HEAD
+=======
+function isTripEditMode(c) {
+  return c.req.header("X-Trip-Edit-Mode") === "1";
+}
+
+function canEditCompletedTrip(c, trip = null) {
+  const viewer = c.get("user");
+  if (isTripEditMode(c)) return true;
+  if (!viewer) return false;
+  if (viewer.role === "admin" || viewer.role === "admin_master") return true;
+  if (Number(trip?.user_id) === Number(viewer.id)) return true;
+  return Boolean(getLedSector(viewer));
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 function timeToMinutes(value) {
   if (!value || !/^\d{2}:\d{2}$/.test(value)) return null;
   const [hours, minutes] = value.split(":").map(Number);
@@ -145,6 +235,77 @@ async function saveCustomFields(db, taskId, fields) {
     .run();
 }
 
+<<<<<<< HEAD
+=======
+async function processarVeiculoDemandaPlaca(db, tripId, userId, payload) {
+  const demandaVeiculoId = Number(payload.demanda_veiculo_id || 0);
+  const action = String(payload.demanda_veiculo_placa_action || "").trim();
+  const placa = String(payload.demanda_veiculo_placa || payload.plate || "").trim();
+
+  if (!demandaVeiculoId || !placa || !["existing", "new"].includes(action)) {
+    return {
+      demandaVeiculoId,
+      placa: payload.plate || placa || null,
+      criadoVeiculo: false,
+      atualizadoVeiculo: false,
+    };
+  }
+
+  const vehicle = await db.prepare(
+    "SELECT * FROM vehicles WHERE id = ? AND trip_id = ?",
+  ).bind(demandaVeiculoId, tripId).first();
+
+  if (!vehicle) {
+    return {
+      demandaVeiculoId,
+      placa: payload.plate || placa || null,
+      criadoVeiculo: false,
+      atualizadoVeiculo: false,
+    };
+  }
+
+  if (action === "existing") {
+    if (!vehicle.placa) {
+      await db.prepare(
+        "UPDATE vehicles SET placa = ? WHERE id = ? AND trip_id = ?",
+      ).bind(placa, demandaVeiculoId, tripId).run();
+      return {
+        demandaVeiculoId,
+        placa,
+        criadoVeiculo: false,
+        atualizadoVeiculo: true,
+      };
+    }
+    return {
+      demandaVeiculoId,
+      placa: vehicle.placa || placa,
+      criadoVeiculo: false,
+      atualizadoVeiculo: false,
+    };
+  }
+
+  const novoVeiculo = await db.prepare(`
+    INSERT INTO vehicles (trip_id, montadora, modelo, versao_modelo, ano, placa, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    tripId,
+    vehicle.montadora,
+    vehicle.modelo,
+    vehicle.versao_modelo || null,
+    vehicle.ano || null,
+    placa,
+    userId,
+  ).run();
+
+  return {
+    demandaVeiculoId: Number(novoVeiculo.meta.last_row_id),
+    placa,
+    criadoVeiculo: true,
+    atualizadoVeiculo: false,
+  };
+}
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 async function getCustomFields(db, taskId) {
   const { results } = await db
     .prepare(
@@ -316,7 +477,11 @@ export async function getAccessibleTrip(c, tripId) {
     .first();
   if (!trip) return null;
 
+<<<<<<< HEAD
   if (trip.user_id === userId) return trip;
+=======
+  if (Number(trip.user_id) === Number(userId)) return trip;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   const [member, ledSector, owner] = await Promise.all([
     c.env.DB.prepare(
@@ -344,9 +509,17 @@ export async function getAccessibleTrip(c, tripId) {
     viewer?.role === "admin" || viewer?.role === "admin_master";
   if (isAdminUser) return trip;
 
+<<<<<<< HEAD
   if (ledSector) return trip;
 
   if (owner && owner.manager_id === userId) return trip;
+=======
+  const ownerSector = String(owner?.sector || "").trim();
+  const viewerSector = String(viewer?.sector || "").trim();
+  if (ledSector || (getLedSector(viewer) && ownerSector === viewerSector)) return trip;
+
+  if (owner && Number(owner.manager_id) === Number(userId)) return trip;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   return null;
 }
@@ -356,6 +529,12 @@ taskRoutes.post("/:id/tasks", async (c) => {
   const userId = c.get("userId");
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
+<<<<<<< HEAD
+=======
+  if (trip.status === "completed" && !canEditCompletedTrip(c, trip)) {
+    return err("Viagem concluída é somente leitura.");
+  }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   const contentType = c.req.header("content-type") || "";
   let work_type = "";
@@ -378,6 +557,11 @@ taskRoutes.post("/:id/tasks", async (c) => {
   let eh_atividade_prioridade = false;
   let demanda_atividade_id = null;
   let demanda_veiculo_id = null;
+<<<<<<< HEAD
+=======
+  let demanda_veiculo_placa_action = "";
+  let demanda_veiculo_placa = "";
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   let allow_conflict = false;
   const photoFiles = [];
 
@@ -407,6 +591,11 @@ taskRoutes.post("/:id/tasks", async (c) => {
     const rawDvId = form.get("demanda_veiculo_id");
     demanda_atividade_id = rawDaId && Number(rawDaId) > 0 ? Number(rawDaId) : null;
     demanda_veiculo_id = rawDvId && Number(rawDvId) > 0 ? Number(rawDvId) : null;
+<<<<<<< HEAD
+=======
+    demanda_veiculo_placa_action = String(form.get("demanda_veiculo_placa_action") || "").trim();
+    demanda_veiculo_placa = String(form.get("demanda_veiculo_placa") || "").trim();
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     allow_conflict = String(form.get("allow_conflict") || "") === "1";
   } else {
     let body;
@@ -439,13 +628,39 @@ taskRoutes.post("/:id/tasks", async (c) => {
     eh_atividade_prioridade = Boolean(body.eh_atividade_prioridade);
     demanda_atividade_id = body.demanda_atividade_id && Number(body.demanda_atividade_id) > 0 ? Number(body.demanda_atividade_id) : null;
     demanda_veiculo_id = body.demanda_veiculo_id && Number(body.demanda_veiculo_id) > 0 ? Number(body.demanda_veiculo_id) : null;
+<<<<<<< HEAD
     allow_conflict = Boolean(body.allow_conflict);
   }
 
+=======
+    demanda_veiculo_placa_action = String(body.demanda_veiculo_placa_action || "").trim();
+    demanda_veiculo_placa = String(body.demanda_veiculo_placa || body.plate || "").trim();
+    allow_conflict = Boolean(body.allow_conflict);
+  }
+
+  if (demanda_veiculo_id) {
+    const vehicle = await c.env.DB.prepare(
+      'SELECT id FROM vehicles WHERE id = ? AND trip_id = ?',
+    ).bind(demanda_veiculo_id, id).first();
+    if (!vehicle) {
+      demanda_veiculo_id = null;
+    }
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   if (eh_atividade_prioridade && !demanda_atividade_id) {
     return err("Selecione a atividade de prioridade correspondente.");
   }
 
+<<<<<<< HEAD
+=======
+  if (!eh_atividade_prioridade && !demanda_veiculo_id && (montadora || modelo || submodelo || ano || plate)) {
+    if (!montadora || !modelo) {
+      return err("Informe a montadora e o modelo para cadastrar o veículo da atividade.");
+    }
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   const normalizedWorkType = work_type
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -522,7 +737,11 @@ taskRoutes.post("/:id/tasks", async (c) => {
       .filter(Boolean);
     return (
       rangesOverlap(startMinutes, endMinutes, existingStart, existingEnd) &&
+<<<<<<< HEAD
       existingIds.includes(Number(userId))
+=======
+      existingIds.some((existingId) => uniqueIds.includes(existingId))
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     );
   });
 
@@ -638,17 +857,71 @@ taskRoutes.post("/:id/tasks", async (c) => {
     }
   }
 
+<<<<<<< HEAD
+=======
+  const veiculoDemandaPlacaResultado = await processarVeiculoDemandaPlaca(c.env.DB, id, userId, {
+    demanda_veiculo_id,
+    demanda_veiculo_placa_action,
+    demanda_veiculo_placa,
+    plate,
+  });
+
+  demanda_veiculo_id = veiculoDemandaPlacaResultado.demandaVeiculoId;
+  if (veiculoDemandaPlacaResultado.placa) {
+    plate = veiculoDemandaPlacaResultado.placa;
+  }
+
+  if (veiculoDemandaPlacaResultado.criadoVeiculo || veiculoDemandaPlacaResultado.atualizadoVeiculo) {
+    await c.env.DB.prepare(
+      'UPDATE trip_tasks SET demanda_veiculo_id = ? WHERE id = ?',
+    ).bind(demanda_veiculo_id, taskId).run();
+  }
+
+  if (!eh_atividade_prioridade) {
+    try {
+      await registrarVeiculoDaAtividadeRealizada(c.env.DB, id, userId, {
+        montadora,
+        modelo,
+        submodelo,
+        ano,
+        plate,
+        projectId: project_id,
+        workType: work_type,
+        summary,
+      }, demanda_veiculo_id || null);
+    } catch (vehicleError) {
+      console.error("Falha ao cadastrar veículo e demanda da atividade:", vehicleError);
+    }
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   if (eh_atividade_prioridade && demanda_atividade_id) {
     try {
       const atividade = await c.env.DB.prepare(`
         SELECT da.status, am.descricao
         FROM demanda_atividades da
         LEFT JOIN atividades_modelo am ON am.id = da.atividade_modelo_id
+<<<<<<< HEAD
         WHERE da.id = ?
       `).bind(demanda_atividade_id).first();
       await atualizarStatusDemandaAtividade(c.env.DB, demanda_atividade_id, userId);
       if (atividade?.status !== 'concluida') {
         await notificarLiderDemandaConcluida(c.env.DB, trip, atividade, userId, c.env);
+=======
+        INNER JOIN demanda_veiculos dv ON dv.id = da.demanda_veiculo_id
+        WHERE da.id = ? AND dv.id = ?
+      `).bind(demanda_atividade_id, demanda_veiculo_id).first();
+      if (atividade) {
+        await atualizarStatusDemandaAtividade(c.env.DB, demanda_atividade_id, userId);
+        if (atividade.status !== 'concluida') {
+          await notificarLiderDemandaConcluida(c.env.DB, trip, atividade, userId, c.env);
+        }
+      } else {
+        const vehicleDemand = await c.env.DB.prepare(
+          'SELECT status, atividade AS descricao FROM vehicle_demands WHERE id = ? AND vehicle_id = ?',
+        ).bind(demanda_atividade_id, demanda_veiculo_id).first();
+        if (vehicleDemand) await atualizarStatusDemandaVeiculo(c.env.DB, demanda_atividade_id);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
       }
     } catch (statusError) {
       console.error("Falha ao atualizar status de demanda atividade:", statusError);
@@ -704,7 +977,14 @@ taskRoutes.post("/:id/tasks", async (c) => {
   });
 
   return json(
+<<<<<<< HEAD
     { success: true, trip: await fetchTripFull(c.env.DB, id, userId) },
+=======
+    {
+      success: true,
+      trip: await fetchTripFull(c.env.DB, id, userId),
+    },
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     201,
   );
 });
@@ -716,7 +996,11 @@ taskRoutes.delete("/:id/tasks/:taskId", async (c) => {
 
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
+<<<<<<< HEAD
   if (trip.status === "completed")
+=======
+  if (trip.status === "completed" && !canEditCompletedTrip(c, trip))
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
     return err("Viagem concluída é somente leitura.");
 
   const task = await c.env.DB.prepare(
@@ -768,6 +1052,12 @@ taskRoutes.put("/:id/tasks/:taskId", async (c) => {
 
   const trip = await getAccessibleTrip(c, id);
   if (!trip) return err("Viagem não encontrada.", 404);
+<<<<<<< HEAD
+=======
+  if (trip.status === "completed" && !canEditCompletedTrip(c, trip)) {
+    return err("Viagem concluída é somente leitura.");
+  }
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
   const task = await c.env.DB.prepare(
     "SELECT * FROM trip_tasks WHERE id = ? AND trip_id = ?",

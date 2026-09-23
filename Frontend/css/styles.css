@@ -2101,6 +2101,10 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
   gap: 0.75rem;
   padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border-subtle);
+<<<<<<< HEAD
+=======
+  border-left: 3px solid var(--accent);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   background: var(--surface);
   color: var(--text);
 }
@@ -2414,9 +2418,18 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
 /* === Quadro de demandas do líder (compacto) === */
 #demandas .panel-header {
   padding: 0.7rem 1rem;
+<<<<<<< HEAD
 }
 #demandas .panel-header h2 {
   font-size: 1rem;
+=======
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255,255,255,0.02);
+}
+#demandas .panel-header h2 {
+  font-size: 1rem;
+  margin: 0;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 #demandas .panel-body,
 #demandas .panel-content {
@@ -2446,11 +2459,16 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
 .demanda-group-card {
   margin-bottom: 0.75rem !important;
   border: 1px solid var(--border);
+<<<<<<< HEAD
   border-radius: 10px;
+=======
+  border-radius: 12px;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   overflow: hidden;
   background: var(--panel-bg);
 }
 .demanda-group-card.demanda-status-pendente {
+<<<<<<< HEAD
   border-color: #eab308;
   background: linear-gradient(135deg, rgba(234,179,8,0.06), transparent);
 }
@@ -2476,6 +2494,22 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
 .demanda-group-header .text-muted {
   font-size: 0.72rem !important;
   margin-top: 2px;
+=======
+  border-color: #86efac;
+  background: linear-gradient(135deg, rgba(134,239,172,0.08), transparent);
+}
+.demanda-group-card.demanda-status-em_andamento {
+  border-color: #f5c76b;
+  background: linear-gradient(135deg, rgba(245,199,107,0.08), transparent);
+}
+.demanda-group-card.demanda-status-concluida {
+  border-color: #86efac;
+  background: linear-gradient(135deg, rgba(134,239,172,0.08), transparent);
+}
+.demanda-group-header {
+  padding: 0;
+  display: none;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 .demanda-status-highlight .badge {
   font-size: 0.72rem !important;
@@ -2486,6 +2520,10 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
   margin: 0.55rem 0.7rem !important;
   margin-bottom: 0.55rem !important;
   border-radius: 8px !important;
+<<<<<<< HEAD
+=======
+  background: rgba(255,255,255,0.02) !important;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 .demanda-vehicle-card:last-child {
   margin-bottom: 0.7rem !important;
@@ -2498,6 +2536,7 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
   margin-top: 2px;
 }
 .demanda-vehicle-card table.data {
+<<<<<<< HEAD
   margin-top: 0.4rem !important;
 }
 .demanda-vehicle-card table.data th,
@@ -2508,6 +2547,30 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
 .demanda-vehicle-card table.data th {
   font-size: 0.7rem;
   padding: 0.35rem 0.55rem !important;
+=======
+  margin-top: 0.45rem !important;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.demanda-vehicle-card table.data th,
+.demanda-vehicle-card table.data td {
+  padding: 0.45rem 0.55rem !important;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+.demanda-vehicle-card table.data thead th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+  background: rgba(148, 163, 184, 0.04);
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+}
+.demanda-vehicle-card table.data tbody tr:last-child td {
+  border-bottom: none;
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 }
 .demanda-vehicle-card table.data td span {
   padding: 1px 6px !important;
@@ -2516,6 +2579,32 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
 .demanda-vehicle-card table.data td .text-muted {
   font-size: 0.68rem !important;
 }
+<<<<<<< HEAD
+=======
+.demanda-vehicle-card-flat {
+  text-align: left;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+}
+.demanda-vehicle-card-flat .demanda-vehicle-data-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.8rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding: 0.1rem 0;
+  font-size: 0.76rem;
+  color: var(--text-2);
+}
+.demanda-vehicle-card-flat .demanda-vehicle-data-line span {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+}
+.demanda-vehicle-card-flat .demanda-vehicle-data-line strong {
+  color: var(--text);
+}
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 #demandas .badge.planned,
 #demandas .badge.in_progress,
 #demandas .badge.completed {
@@ -2677,6 +2766,73 @@ html[data-theme='dark'] .sidebar-mobile-toggle {
 
 /* Mobile padrão (abaixo de 880px) */
 @media (max-width: 880px) {
+<<<<<<< HEAD
+=======
+  .trip-shell-header {
+    top: 0;
+    padding: 0.65rem 0;
+  }
+
+  .trip-shell-header .form-actions {
+    gap: 0.35rem;
+  }
+
+  .trip-shell-header .form-actions .btn:not(#btn-edit-trip):not(#btn-delete-trip),
+  .trip-shell-header .trip-back-button span {
+    display: none;
+  }
+
+  .trip-tabs {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 80;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin: 0;
+    padding: 0.35rem 0.25rem calc(0.35rem + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 0;
+  }
+
+  .trip-tabs a {
+    padding: 0.6rem 0.2rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+
+  .trip-tabs a::before {
+    display: block;
+    margin-bottom: 0.15rem;
+    font-size: 1rem;
+  }
+
+  .trip-tabs a:nth-child(1)::before { content: "▦"; }
+  .trip-tabs a:nth-child(2)::before { content: "+"; }
+  .trip-tabs a:nth-child(3)::before { content: "◆"; }
+  .trip-tabs a:nth-child(4)::before { content: "▤"; }
+
+  .trip-tabs a.active::after {
+    right: 20%;
+    bottom: 0.15rem;
+    left: 20%;
+  }
+
+  .trip-shell-header h1 {
+    font-size: 1.05rem;
+  }
+
+  .trip-report-frame {
+    min-height: 700px;
+  }
+
+  .trip-shell-header + .trip-tabs + #alert + #overdue-banner + #content {
+    padding-bottom: 4.5rem;
+  }
+
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   .trip-detail-header {
     flex-direction: column;
     align-items: stretch;

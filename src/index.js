@@ -2,7 +2,11 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { auth } from './auth.js';
 import { authPassword } from './auth_password.js';
+<<<<<<< HEAD
 import { trips } from './trips.js';
+=======
+import { trips, tripConflictRoutes } from './trips.js';
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 import { files, tripFiles } from './files.js';
 import { profile } from './profile.js';
 import { notifications } from './notifications.js';
@@ -13,6 +17,10 @@ import { presence } from './presence.js';
 import { admin } from './admin.js';
 import { mapaOperacional } from './mapa_operacional.js';
 import { demandas } from './demandas.js';
+<<<<<<< HEAD
+=======
+import { vehicleRoutes } from './vehicles.js';
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 import { err, json } from './helpers.js';
 
 const app = new Hono();
@@ -21,8 +29,13 @@ app.use(
   '/api/*',
   cors({
     origin: '*',
+<<<<<<< HEAD
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
+=======
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Trip-Edit-Mode'],
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
   })
 );
 
@@ -37,6 +50,10 @@ app.get('/api/health', (c) =>
 auth.route('/password', authPassword);
 app.route('/api/auth', auth);
 app.route('/api/trips', trips);
+<<<<<<< HEAD
+=======
+app.route('/api/viagens', tripConflictRoutes);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 app.route('/api/trips', tripFiles);
 app.route('/api/profile', profile);
 app.route('/api/notifications', notifications);
@@ -48,6 +65,10 @@ app.route('/api/admin', admin);
 app.route('/api', mapaOperacional);
 app.route('/api', files);
 app.route('/api/demandas', demandas);
+<<<<<<< HEAD
+=======
+app.route('/api', vehicleRoutes);
+>>>>>>> 988f489339d9b2a96d221ffa1786b6bf6c94ff25
 
 app.notFound((c) => {
   if (c.req.path.startsWith('/api/') || c.req.path === '/api') {
